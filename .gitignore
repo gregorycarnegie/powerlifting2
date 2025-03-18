@@ -1,0 +1,5 @@
+__pycache__/
+data/openpowerlifting.parquet
+data/
+cache/
+.idea/
