@@ -792,33 +792,8 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
     
     # Determine which figures need to be updated based on the trigger
     # This optimized approach only updates the necessary figures
-    figure_updates = {
-        'Squat': {
-            'histogram': triggered_id in ('update-button', 'squat-input', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units') or need_full_update,
-            'wilks_histogram': triggered_id in ('update-button', 'squat-input', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units', 'bodyweight-input') or need_full_update,
-            'scatter': triggered_id in ('update-button', 'squat-input', 'bodyweight-input', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units') or need_full_update,
-            'wilks_scatter': triggered_id in ('update-button', 'squat-input', 'bodyweight-input', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units') or need_full_update,
-        },
-        'Bench': {
-            'histogram': triggered_id in ('update-button', 'bench-input', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units') or need_full_update,
-            'wilks_histogram': triggered_id in ('update-button', 'bench-input', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units', 'bodyweight-input') or need_full_update,
-            'scatter': triggered_id in ('update-button', 'bench-input', 'bodyweight-input', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units') or need_full_update,
-            'wilks_scatter': triggered_id in ('update-button', 'bench-input', 'bodyweight-input', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units') or need_full_update,
-        },
-        'Deadlift': {
-            'histogram': triggered_id in ('update-button', 'deadlift-input', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units') or need_full_update,
-            'wilks_histogram': triggered_id in ('update-button', 'deadlift-input', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units', 'bodyweight-input') or need_full_update,
-            'scatter': triggered_id in ('update-button', 'deadlift-input', 'bodyweight-input', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units') or need_full_update,
-            'wilks_scatter': triggered_id in ('update-button', 'deadlift-input', 'bodyweight-input', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units') or need_full_update,
-        },
-        'Total': {
-            'histogram': triggered_id in ('update-button', 'squat-input', 'bench-input', 'deadlift-input', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units') or need_full_update,
-            'wilks_histogram': triggered_id in ('update-button', 'squat-input', 'bench-input', 'deadlift-input', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units', 'bodyweight-input') or need_full_update,
-            'scatter': triggered_id in ('update-button', 'squat-input', 'bench-input', 'deadlift-input', 'bodyweight-input', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units') or need_full_update,
-            'wilks_scatter': triggered_id in ('update-button', 'squat-input', 'bench-input', 'deadlift-input', 'bodyweight-input', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units') or need_full_update,
-        }
-    }
-    
+    figure_updates = ut.get_metrics(triggered_id, need_full_update)
+
     # Map lift types to their values
     lift_values = {
         'Squat': converted_squat,
@@ -998,6 +973,23 @@ def update_instagram_link(n_clicks: Optional[int]) -> str:
 
 # ---------------- App Layout ----------------
 
+def lift_tabs(*lifts: str, width: int=12) -> list[dbc.Tab]:
+    return [dbc.Tab(label=lift.capitalize(), children=[
+        dbc.Row([dbc.Col([dcc.Graph(id=f'{lift}-histogram')], width=width)]),
+        dbc.Row([dbc.Col([dcc.Graph(id=f'{lift}-wilks-histogram')], width=width)]),
+        dbc.Row([dbc.Col([dcc.Graph(id=f'{lift}-scatter')], width=width)]),
+        dbc.Row([dbc.Col([dcc.Graph(id=f'{lift}-wilks-scatter')], width=width)])
+        ]) for lift in lifts]
+
+def input_groups(*lifts: str, type='number', min=0, step=2.5, placeholder='kg', inputMode='decimal', pattern="[0-9]*[.]?[0-9]*") -> list[dbc.InputGroup]:
+    return [dbc.InputGroup([
+        dbc.InputGroupText(f"{lift.capitalize()}"),
+        dbc.Input(id=f'{lift}-input', type=type, min=min, step=step, placeholder=placeholder, inputMode=inputMode, pattern=pattern)
+    ]) for lift in lifts]
+
+def checklist_options(*options: str) -> list[dict[str, str]]:
+    return [{'label': opt, 'value': opt} for opt in options]
+
 app.layout = html.Div([
     html.H1("Powerlifting Data Visualization", className="mt-4 mb-4 text-center"),
     dbc.Row([
@@ -1038,36 +1030,12 @@ app.layout = html.Div([
                 html.Label("Equipment:"),
                 dbc.Checklist(
                     id='equipment-filter',
-                    options=[
-                        {'label': 'Raw', 'value': 'Raw'},
-                        {'label': 'Wraps', 'value': 'Wraps'},
-                        {'label': 'Single-ply', 'value': 'Single-ply'},
-                        {'label': 'Multi-ply', 'value': 'Multi-ply'},
-                        {'label': 'Unlimited', 'value': 'Unlimited'},
-                        {'label': 'Straps', 'value': 'Straps'}
-                    ],
+                    options=checklist_options('Raw', 'Wraps', 'Single-ply', 'Multi-ply', 'Unlimited', 'Straps', ),
                     value=['Raw'],
                     className="mb-3"
                 ),
                 html.Label("Your Lifts (kg):"),
-                html.Div([
-                    dbc.InputGroup([
-                        dbc.InputGroupText("Squat"),
-                        dbc.Input(id='squat-input', type='number', min=0, step=2.5, placeholder='kg', inputMode='decimal', pattern="[0-9]*[.]?[0-9]*")
-                    ], className="mb-2"),
-                    dbc.InputGroup([
-                        dbc.InputGroupText("Bench"),
-                        dbc.Input(id='bench-input', type='number', min=0, step=2.5, placeholder='kg', inputMode='decimal', pattern="[0-9]*[.]?[0-9]*")
-                    ], className="mb-2"),
-                    dbc.InputGroup([
-                        dbc.InputGroupText("Deadlift"),
-                        dbc.Input(id='deadlift-input', type='number', min=0, step=2.5, placeholder='kg', inputMode='decimal', pattern="[0-9]*[.]?[0-9]*")
-                    ], className="mb-2"),
-                    dbc.InputGroup([
-                        dbc.InputGroupText("Bodyweight"),
-                        dbc.Input(id='bodyweight-input', type='number', min=0, step=0.1, placeholder='kg', inputMode='decimal', pattern="[0-9]*[.]?[0-9]*")
-                    ], className="mb-3")
-                ]),
+                html.Div(input_groups("squat", "bench", "deadlift", "bodyweight")),
                 dbc.Button(
                     "Update Visualizations", 
                     id="update-button", 
@@ -1080,32 +1048,7 @@ app.layout = html.Div([
             ], className="p-3 border rounded")
         ], width=3),
         dbc.Col([
-            dbc.Tabs([
-                dbc.Tab(label="Squat", children=[
-                    dbc.Row([dbc.Col([dcc.Graph(id='squat-histogram')], width=12)]),
-                    dbc.Row([dbc.Col([dcc.Graph(id='squat-wilks-histogram')], width=12)]),
-                    dbc.Row([dbc.Col([dcc.Graph(id='squat-scatter')], width=12)]),
-                    dbc.Row([dbc.Col([dcc.Graph(id='squat-wilks-scatter')], width=12)])
-                ]),
-                dbc.Tab(label="Bench Press", children=[
-                    dbc.Row([dbc.Col([dcc.Graph(id='bench-histogram')], width=12)]),
-                    dbc.Row([dbc.Col([dcc.Graph(id='bench-wilks-histogram')], width=12)]),
-                    dbc.Row([dbc.Col([dcc.Graph(id='bench-scatter')], width=12)]),
-                    dbc.Row([dbc.Col([dcc.Graph(id='bench-wilks-scatter')], width=12)])
-                ]),
-                dbc.Tab(label="Deadlift", children=[
-                    dbc.Row([dbc.Col([dcc.Graph(id='deadlift-histogram')], width=12)]),
-                    dbc.Row([dbc.Col([dcc.Graph(id='deadlift-wilks-histogram')], width=12)]),
-                    dbc.Row([dbc.Col([dcc.Graph(id='deadlift-scatter')], width=12)]),
-                    dbc.Row([dbc.Col([dcc.Graph(id='deadlift-wilks-scatter')], width=12)])
-                ]),
-                dbc.Tab(label="Total", children=[
-                    dbc.Row([dbc.Col([dcc.Graph(id='total-histogram')], width=12)]),
-                    dbc.Row([dbc.Col([dcc.Graph(id='total-wilks-histogram')], width=12)]),
-                    dbc.Row([dbc.Col([dcc.Graph(id='total-scatter')], width=12)]),
-                    dbc.Row([dbc.Col([dcc.Graph(id='total-wilks-scatter')], width=12)])
-                ])
-            ]),
+            dbc.Tabs(lift_tabs("squat", "bench", "deadlift", "total")),
             dbc.Row([
                 dbc.Col([
                     html.Div([

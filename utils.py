@@ -440,3 +440,52 @@ def sample_data(df: pl.DataFrame, lift: str, sample_size: int, func: Callable) -
         logger.info(f"{func.__name__}: Sampled {df.height} rows for {lift} visualization")
     
     return df
+
+@cache
+def get_metrics(triggered_id: str, need_full_update: bool) -> dict[str, dict[str, bool]]:
+    """
+    Determine which metrics need to be updated based on the triggered component and update flag.
+    
+    Args:
+        triggered_id: ID of the component that triggered the callback
+        need_full_update: Flag indicating if a full update is needed
+        
+    Returns:
+        Dictionary mapping exercises to chart types with boolean flags indicating if update is needed
+    """
+    # Common input controls that affect all charts
+    common_inputs = {'update-button', 'sex-filter', 'equipment-filter', 'weight-class-dropdown', 'units'}
+    
+    # Map display names to input IDs
+    lift_mapping = {
+        'Squat': 'squat',
+        'Bench': 'bench',
+        'Deadlift': 'deadlift'
+    }
+    
+    # Define chart types and their additional required inputs beyond the common ones
+    chart_additional_inputs = {
+        'histogram': set(),  # No additional inputs beyond lift-specific and common inputs
+        'wilks_histogram': {'bodyweight-input'},
+        'scatter': {'bodyweight-input'},
+        'wilks_scatter': {'bodyweight-input'}
+    }
+    
+    # Initialize result dictionary
+    figure_updates = {lift_name: {} for lift_name in lift_mapping.keys()}
+    figure_updates['Total'] = {}
+    
+    # Fill in individual lift metrics
+    for lift_name, lift_id in lift_mapping.items():
+        for chart_name, additional_inputs in chart_additional_inputs.items():
+            input_set = common_inputs | {f'{lift_id}-input'} | additional_inputs
+            figure_updates[lift_name][chart_name] = triggered_id in input_set or need_full_update
+    
+    # Handle Total metrics (affected by any lift input)
+    all_lift_inputs = {f'{lift_id}-input' for lift_id in lift_mapping.values()}
+    
+    for chart_name, additional_inputs in chart_additional_inputs.items():
+        total_inputs = common_inputs | all_lift_inputs | additional_inputs
+        figure_updates['Total'][chart_name] = triggered_id in total_inputs or need_full_update
+    
+    return figure_updates
