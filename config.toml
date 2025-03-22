@@ -1,0 +1,27 @@
+[app]
+name = "Powerlifting Data Visualization"
+version = "1.0.0"
+debug = true
+
+[data]
+data_dir = "data"
+parquet_file = "openpowerlifting.parquet"
+csv_backup = "openpowerlifting_backup.csv"
+last_updated_file = "last_updated.txt"
+csv_url = "https://openpowerlifting.gitlab.io/opl-csv/files/openpowerlifting-latest.zip"
+update_interval_days = 1
+
+[cache]
+memory_size = 100
+disk_cache_dir = "./cache"
+max_age_hours = 72
+enable_compression = true
+
+[visualization]
+default_sample_size = 10000
+wilks_coefficients_male = [47.46178854, 8.472061379, 0.07369410346, -0.001395833811, 7.07665973070743e-06, -1.20804336482315e-08]
+wilks_coefficients_female = [-125.4255398, 13.71219419, -0.03307250631, -0.001050400051, 9.38773881462799e-06, -2.3334613884954e-08]
+bodyweight_tolerance = 5  # kg range for finding similar lifters
+
+[display]
+weight_conversion_factor = 2.20462  # kg to lbs

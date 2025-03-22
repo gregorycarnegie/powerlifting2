@@ -1,0 +1,26 @@
+# Project Structure
+
+```
+powerlifting-visualizer/
+├── app.py                  # Main application entry point
+├── config.toml             # Configuration settings
+├── data/                   # Data directory
+├── cache/                  # Cache directory
+├── models/                 # Data models and processing
+│   ├── __init__.py
+│   ├── data_loader.py      # Data downloading and processing
+│   └── wilks.py            # Wilks score calculations and weight classes
+├── services/               # Service utilities
+│   ├── __init__.py
+│   ├── cache_service.py    # Formerly figure_cache.py
+│   └── config_service.py   # Configuration loading
+├── utils/                  # Utility functions
+│   ├── __init__.py
+│   ├── dash_helpers.py     # Dash-specific utilities 
+│   ├── filters.py          # Data filtering functions
+│   └── visualization.py    # Figure creation functions
+└── views/                  # UI components
+    ├── __init__.py
+    ├── components.py       # UI component definitions
+    └── layout.py           # Main app layout
+```

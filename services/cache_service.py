@@ -5,6 +5,9 @@ import time
 import zlib
 from collections import OrderedDict
 from pathlib import Path
+from typing import Any, Dict, Optional
+
+from services.config_service import config
 
 # Configure logging
 logging.basicConfig(
@@ -14,21 +17,37 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-class LRUFigureCache:
+class LRUCache:
     """A size-limited Least Recently Used (LRU) cache."""
     
-    def __init__(self, max_size=100):
+    def __init__(self, max_size: int = 100):
         self.cache = OrderedDict()
         self.max_size = max_size
     
-    def get(self, key):
+    def get(self, key: str) -> Optional[Any]:
+        """
+        Get an item from the cache.
+        
+        Args:
+            key: Cache key
+            
+        Returns:
+            Cached value or None if not found
+        """
         if key not in self.cache:
             return None
         # Move to end (most recently used)
         self.cache.move_to_end(key)
         return self.cache[key]
     
-    def put(self, key, value):
+    def put(self, key: str, value: Any) -> None:
+        """
+        Add or update an item in the cache.
+        
+        Args:
+            key: Cache key
+            value: Value to cache
+        """
         # Add/update and move to end
         self.cache[key] = value
         self.cache.move_to_end(key)
@@ -36,22 +55,42 @@ class LRUFigureCache:
         if len(self.cache) > self.max_size:
             self.cache.popitem(last=False)
     
-    def __contains__(self, key):
+    def __contains__(self, key: str) -> bool:
         return key in self.cache
     
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.cache)
 
-class IntegratedCacheSystem:
+class CacheService:
     """Complete caching system with multi-level storage and metrics."""
     
-    def __init__(self, memory_size=100, disk_cache_dir=Path("./cache"), 
-                 max_age_hours=72, enable_compression=True):
-        self.memory_cache = LRUFigureCache(memory_size)
+    _instance = None
+    
+    def __new__(cls):
+        """Singleton pattern implementation."""
+        if cls._instance is None:
+            cls._instance = super(CacheService, cls).__new__(cls)
+            cls._instance._initialize()
+        return cls._instance
+    
+    def _initialize(self) -> None:
+        """Initialize the cache with configuration settings."""
+        # Load configuration
+        memory_size = config.get("cache", "memory_size") or 100
+        disk_cache_dir = Path(config.get("cache", "disk_cache_dir") or "./cache")
+        max_age_hours = config.get("cache", "max_age_hours") or 72
+        enable_compression = config.get("cache", "enable_compression")
+        if enable_compression is None:
+            enable_compression = True
+        
+        # Initialize components
+        self.memory_cache = LRUCache(memory_size)
         self.disk_cache_dir = disk_cache_dir
         self.disk_cache_dir.mkdir(exist_ok=True)
         self.max_age_seconds = max_age_hours * 3600
         self.enable_compression = enable_compression
+        
+        # Initialize metrics
         self.stats = {
             'hits': 0,
             'misses': 0,
@@ -62,9 +101,23 @@ class IntegratedCacheSystem:
             'evictions': 0,
             'start_time': time.time()
         }
+        
+        logger.info(f"Cache service initialized with memory_size={memory_size}, "
+                   f"disk_cache_dir={disk_cache_dir}, "
+                   f"max_age_hours={max_age_hours}, "
+                   f"compression={enable_compression}")
     
-    def get(self, key, default=None):
-        """Get item from cache with metrics tracking."""
+    def get(self, key: str, default: Any = None) -> Any:
+        """
+        Get item from cache with metrics tracking.
+        
+        Args:
+            key: Cache key
+            default: Default value to return if key not found
+            
+        Returns:
+            Cached value or default if not found
+        """
         try:
             # Try memory cache first
             result = self.memory_cache.get(key)
@@ -85,7 +138,6 @@ class IntegratedCacheSystem:
                         self.stats['evictions'] += 1
                     except Exception as e:
                         logger.error(f"Failed to delete expired cache file: {e}")
-                        pass
                     self.stats['misses'] += 1
                     return default
                 
@@ -127,8 +179,17 @@ class IntegratedCacheSystem:
             self.stats['errors'] += 1
             return default
     
-    def put(self, key, value):
-        """Store item in both memory and disk cache."""
+    def put(self, key: str, value: Any) -> bool:
+        """
+        Store item in both memory and disk cache.
+        
+        Args:
+            key: Cache key
+            value: Value to cache
+            
+        Returns:
+            True if successful, False otherwise
+        """
         try:
             # Store in memory
             self.memory_cache.put(key, value)
@@ -161,7 +222,7 @@ class IntegratedCacheSystem:
             self.stats['errors'] += 1
             return False
     
-    def _clean_old_files(self):
+    def _clean_old_files(self) -> None:
         """Clean up old cache files."""
         try:
             now = time.time()
@@ -183,8 +244,13 @@ class IntegratedCacheSystem:
         except Exception as e:
             logger.error(f"Error cleaning old cache files: {e}")
     
-    def get_stats(self):
-        """Return cache performance statistics."""
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Return cache performance statistics.
+        
+        Returns:
+            Dictionary of cache statistics
+        """
         total = self.stats['hits'] + self.stats['misses']
         uptime = time.time() - self.stats['start_time']
         
@@ -199,10 +265,10 @@ class IntegratedCacheSystem:
         
         return stats
     
-    def clear(self):
+    def clear(self) -> None:
         """Clear both memory and disk cache."""
         # Clear memory cache
-        self.memory_cache = LRUFigureCache(self.memory_cache.max_size)
+        self.memory_cache = LRUCache(self.memory_cache.max_size)
         
         # Clear disk cache
         try:
@@ -228,10 +294,5 @@ class IntegratedCacheSystem:
             'start_time': start_time
         }
 
-# Create a global instance of the cache
-cache_system = IntegratedCacheSystem(
-    memory_size=100, 
-    disk_cache_dir=Path("./cache"),
-    max_age_hours=72,  # Cache entries expire after 3 days
-    enable_compression=True
-)
+# Create a global instance for easy import
+cache_service = CacheService()
