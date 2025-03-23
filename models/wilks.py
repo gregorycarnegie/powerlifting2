@@ -48,6 +48,19 @@ JUNIOR_WEIGHT_CLASSES = {
     "F": (43.0, "43kg")
 }
 
+def wilks_polynomial[T](coefficients: tuple, bodyweight: T) -> T:
+    """
+    Calculate Wilks score using the provided coefficients and bodyweight.
+
+    Args:
+        coefficients: Tuple of coefficients for the Wilks formula
+        bodyweight: Bodyweight in kg
+
+    Returns:
+        Wilks score
+    """
+    return 600 / sum(x * bodyweight ** y for x, y in zip(coefficients, range(6)))
+
 def calculate_wilks_scores(df: pl.LazyFrame) -> pl.LazyFrame:
     """
     Calculate Wilks scores for different lifts.
@@ -58,11 +71,6 @@ def calculate_wilks_scores(df: pl.LazyFrame) -> pl.LazyFrame:
     Returns:
         LazyFrame with added Wilks score columns
     """
-    # Male coefficients
-    a_m, b_m, c_m, d_m, e_m, f_m = MALE_WILKS_COEFFICIENTS
-    
-    # Female coefficients
-    a_f, b_f, c_f, d_f, e_f, f_f = FEMALE_WILKS_COEFFICIENTS
     
     # Define a function to create the Wilks formula expression
     def wilks_formula(lift_col: str, bw_col: str, sex_col: pl.Expr) -> pl.Expr:
@@ -71,24 +79,10 @@ def calculate_wilks_scores(df: pl.LazyFrame) -> pl.LazyFrame:
             .then(
                 pl.when(sex_col == 'M')
                 .then(
-                    pl.col(lift_col) * 600 / (
-                        a_m + 
-                        b_m * pl.col(bw_col) + 
-                        c_m * pl.col(bw_col)**2 + 
-                        d_m * pl.col(bw_col)**3 + 
-                        e_m * pl.col(bw_col)**4 + 
-                        f_m * pl.col(bw_col)**5
-                    )
+                    pl.col(lift_col) * wilks_polynomial(MALE_WILKS_COEFFICIENTS, pl.col(bw_col))
                 )
                 .otherwise(
-                    pl.col(lift_col) * 600 / (
-                        a_f + 
-                        b_f * pl.col(bw_col) + 
-                        c_f * pl.col(bw_col)**2 + 
-                        d_f * pl.col(bw_col)**3 + 
-                        e_f * pl.col(bw_col)**4 + 
-                        f_f * pl.col(bw_col)**5
-                    )
+                    pl.col(lift_col) * wilks_polynomial(FEMALE_WILKS_COEFFICIENTS, pl.col(bw_col))
                 )
             )
             .otherwise(0)
@@ -121,13 +115,9 @@ def get_wilks_value(total: Optional[float], bodyweight: Optional[float], sex: Op
         return None
     
     if sex == 'M':
-        # Male Wilks coefficients
-        polynomial = sum(x * bodyweight ** y for x, y in zip(MALE_WILKS_COEFFICIENTS, range(6)))
-        return total * 600 / polynomial
+        return total * wilks_polynomial(MALE_WILKS_COEFFICIENTS, bodyweight)
     elif sex == 'F':
-        # Female Wilks coefficients
-        polynomial = sum(x * bodyweight ** y for x, y in zip(FEMALE_WILKS_COEFFICIENTS, range(6)))
-        return total * 600 / polynomial
+        return total * wilks_polynomial(FEMALE_WILKS_COEFFICIENTS, bodyweight)
     
     return None
 
