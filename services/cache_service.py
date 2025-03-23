@@ -5,7 +5,7 @@ import time
 import zlib
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from services.config_service import config
 
@@ -119,65 +119,68 @@ class CacheService:
             Cached value or default if not found
         """
         try:
-            # Try memory cache first
-            result = self.memory_cache.get(key)
-            if result is not None:
-                self.stats['hits'] += 1
-                self.stats['memory_hits'] += 1
-                return result
-            
-            # Try disk cache
-            disk_path = self.disk_cache_dir / f"{key}.pickle"
-            if disk_path.exists():
-                # Check if file is too old
-                file_age = time.time() - disk_path.stat().st_mtime
-                if file_age > self.max_age_seconds:
-                    logger.debug(f"Cache entry expired: {key[:20]}...")
-                    try:
-                        disk_path.unlink()  # Delete expired file
-                        self.stats['evictions'] += 1
-                    except Exception as e:
-                        logger.error(f"Failed to delete expired cache file: {e}")
-                    self.stats['misses'] += 1
-                    return default
-                
-                try:
-                    # Read from disk
-                    with open(disk_path, "rb") as f:
-                        if self.enable_compression:
-                            try:
-                                # Try to read as compressed data
-                                data = f.read()
-                                result = pickle.loads(zlib.decompress(data))
-                            except Exception as e:
-                                logger.warning(f"Failed to decompress cache file: {e}")
-                                # Fallback to regular pickle if not compressed
-                                f.seek(0)
-                                result = pickle.load(f)
-                        else:
-                            result = pickle.load(f)
-                    
-                    # Move to memory cache
-                    self.memory_cache.put(key, result)
-                    self.stats['hits'] += 1
-                    self.stats['disk_hits'] += 1
-                    
-                    # Update file access time to keep track of usage
-                    disk_path.touch()
-                    
-                    return result
-                except Exception as e:
-                    logger.warning(f"Failed to load from disk cache: {e}")
-                    self.stats['errors'] += 1
-            
-            # Cache miss
-            self.stats['misses'] += 1
-            return default
-            
+            return self._lookup_in_cache_hierarchy(key, default)
         except Exception as e:
-            logger.error(f"Cache error: {e}")
-            self.stats['errors'] += 1
-            return default
+            return self._handle_cache_error('Cache error: ', e, default)
+
+    def _lookup_in_cache_hierarchy(self, key: str, default) -> Any:
+        # Try memory cache first
+        result = self.memory_cache.get(key)
+        if result is not None:
+            self.stats['hits'] += 1
+            self.stats['memory_hits'] += 1
+            return result
+
+        # Try disk cache
+        disk_path = self.disk_cache_dir / f"{key}.pickle"
+        if disk_path.exists():
+            # Check if file is too old
+            file_age = time.time() - disk_path.stat().st_mtime
+            if file_age > self.max_age_seconds:
+                logger.debug(f"Cache entry expired: {key[:20]}...")
+                try:
+                    disk_path.unlink()  # Delete expired file
+                    self.stats['evictions'] += 1
+                except Exception as e:
+                    logger.error(f"Failed to delete expired cache file: {e}")
+                self.stats['misses'] += 1
+                return default
+
+            try:
+                return self._read_disk_cached_item(disk_path, key)
+            except Exception as e:
+                logger.warning(f"Failed to load from disk cache: {e}")
+                self.stats['errors'] += 1
+
+        # Cache miss
+        self.stats['misses'] += 1
+        return default
+
+    def _read_disk_cached_item(self, disk_path: Path, key: str):
+        # Read from disk
+        with open(disk_path, "rb") as f:
+            if self.enable_compression:
+                try:
+                    # Try to read as compressed data
+                    data = f.read()
+                    result = pickle.loads(zlib.decompress(data))
+                except Exception as e:
+                    logger.warning(f"Failed to decompress cache file: {e}")
+                    # Fallback to regular pickle if not compressed
+                    f.seek(0)
+                    result = pickle.load(f)
+            else:
+                result = pickle.load(f)
+
+        # Move to memory cache
+        self.memory_cache.put(key, result)
+        self.stats['hits'] += 1
+        self.stats['disk_hits'] += 1
+
+        # Update file access time to keep track of usage
+        disk_path.touch()
+
+        return result
     
     def put(self, key: str, value: Any) -> bool:
         """
@@ -193,10 +196,10 @@ class CacheService:
         try:
             # Store in memory
             self.memory_cache.put(key, value)
-            
+
             # Store on disk
             disk_path = self.disk_cache_dir / f"{key}.pickle"
-            
+
             try:
                 if self.enable_compression:
                     with disk_path.open("wb") as f:
@@ -205,29 +208,32 @@ class CacheService:
                 else:
                     with disk_path.open("wb") as f:
                         pickle.dump(value, f, protocol=4)
-                
+
                 self.stats['disk_writes'] += 1
             except Exception as e:
                 logger.warning(f"Failed to write to disk cache: {e}")
                 self.stats['errors'] += 1
                 return False
-                
+
             # Run occasional maintenance
             if random.random() < 0.01:  # 1% chance to clean on each write
                 self._clean_old_files()
-            
+
             return True
         except Exception as e:
-            logger.error(f"Cache storage error: {e}")
-            self.stats['errors'] += 1
-            return False
+            return self._handle_cache_error('Cache storage error: ', e, False)
+
+    def _handle_cache_error[T](self, arg0: str, e: BaseException, arg2: T) -> T:
+        logger.error(f"{arg0}{e}")
+        self.stats['errors'] += 1
+        return arg2
     
     def _clean_old_files(self) -> None:
         """Clean up old cache files."""
         try:
             now = time.time()
             count = 0
-            
+
             for cache_file in self.disk_cache_dir.glob("*.pickle"):
                 file_age = now - cache_file.stat().st_mtime
                 if file_age > self.max_age_seconds:
@@ -237,14 +243,12 @@ class CacheService:
                         self.stats['evictions'] += 1
                     except Exception as e:
                         logger.error(f"Error cleaning cache file: {e}")
-                        pass
-            
             if count > 0:
                 logger.info(f"Cleaned up {count} old cache files")
         except Exception as e:
             logger.error(f"Error cleaning old cache files: {e}")
     
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Return cache performance statistics.
         
@@ -269,7 +273,7 @@ class CacheService:
         """Clear both memory and disk cache."""
         # Clear memory cache
         self.memory_cache = LRUCache(self.memory_cache.max_size)
-        
+
         # Clear disk cache
         try:
             for cache_file in self.disk_cache_dir.glob("*.pickle"):
@@ -277,10 +281,9 @@ class CacheService:
                     cache_file.unlink()
                 except Exception as e:
                     logger.error(f"Error clearing cache file: {e}")
-                    pass
         except Exception as e:
             logger.error(f"Error clearing disk cache: {e}")
-        
+
         # Reset stats but keep start time
         start_time = self.stats['start_time']
         self.stats = {

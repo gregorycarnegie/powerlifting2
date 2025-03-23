@@ -59,20 +59,23 @@ def download_and_process_data() -> pl.LazyFrame:
     logger.info("Downloading latest OpenPowerlifting data...")
     response = requests.get(CSV_URL)
     if response.status_code != 200:
-        raise Exception(f"Failed to download data: {response.status_code}")
-    
+        raise requests.exceptions.HTTPError(f"Failed to download data: {response.status_code}")
+
     # Extract the CSV file from the ZIP archive
     with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-        csv_files = [f for f in z.namelist() if f.endswith('.csv')]
-        if not csv_files:
-            raise Exception("No CSV file found in the ZIP archive")
-        csv_file = csv_files[0]
-        logger.info(f"Extracting {csv_file}...")
-        z.extract(csv_file, DATA_DIR)
-        csv_path = DATA_DIR / csv_file
-        
-        # Process the extracted data
-        return process_powerlifting_data(csv_path)
+        return zip_to_lazyframe(z)
+
+def zip_to_lazyframe(z: zipfile.ZipFile) -> pl.LazyFrame:
+    csv_files = [f for f in z.namelist() if f.endswith('.csv')]
+    if not csv_files:
+        raise FileNotFoundError("No CSV file found in the ZIP archive")
+    csv_file = csv_files[0]
+    logger.info(f"Extracting {csv_file}...")
+    z.extract(csv_file, DATA_DIR)
+    csv_path = DATA_DIR / csv_file
+
+    # Process the extracted data
+    return process_powerlifting_data(csv_path)
 
 def process_powerlifting_data(csv_path: Path) -> pl.LazyFrame:
     """
@@ -285,21 +288,20 @@ def load_data() -> pl.LazyFrame:
     """
     if check_for_updates():
         return download_and_process_data()
-    else:
-        logger.info("Loading cached data...")
-        try:
-            return pl.scan_parquet(PARQUET_FILE)
-        except Exception as e:
-            logger.error(f"Error loading parquet file: {e}")
-            
-            # Check if we have a CSV backup
-            if CSV_BACKUP.exists():
-                logger.info(f"Trying to load from CSV backup: {CSV_BACKUP}")
-                try:
-                    return pl.scan_csv(CSV_BACKUP)
-                except Exception as csv_e:
-                    logger.error(f"Error loading CSV backup: {csv_e}")
-            
-            # If we get here, we need to re-download and process the data
-            logger.info("Re-downloading and processing data...")
-            return download_and_process_data()
+    logger.info("Loading cached data...")
+    try:
+        return pl.scan_parquet(PARQUET_FILE)
+    except Exception as e:
+        logger.error(f"Error loading parquet file: {e}")
+
+        # Check if we have a CSV backup
+        if CSV_BACKUP.exists():
+            logger.info(f"Trying to load from CSV backup: {CSV_BACKUP}")
+            try:
+                return pl.scan_csv(CSV_BACKUP)
+            except Exception as csv_e:
+                logger.error(f"Error loading CSV backup: {csv_e}")
+
+        # If we get here, we need to re-download and process the data
+        logger.info("Re-downloading and processing data...")
+        return download_and_process_data()

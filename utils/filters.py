@@ -1,6 +1,6 @@
 import logging
 from functools import cache
-from typing import Dict, List, Literal, Optional
+from typing import Literal, Optional
 
 import polars as pl
 
@@ -13,7 +13,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def filter_data(lf: pl.LazyFrame, sex: Optional[Literal['M', 'F', 'All']] = None, 
-                equipment: Optional[List[str]] = None, weight_class: Optional[str] = None) -> pl.LazyFrame:
+                equipment: Optional[list[str]] = None, weight_class: Optional[str] = None) -> pl.LazyFrame:
     """
     Filter the LazyFrame based on user selections.
     
@@ -54,7 +54,7 @@ def filter_data(lf: pl.LazyFrame, sex: Optional[Literal['M', 'F', 'All']] = None
     
     return lf
 
-def get_specific_filter(df: pl.DataFrame, column: str, lift: str, equipment: List[str],
+def get_specific_filter(df: pl.DataFrame, column: str, lift: str, equipment: list[str],
                         bodyweight_column: Optional[str] = None) -> pl.DataFrame:
     """
     Apply lift-specific filtering to a DataFrame.
@@ -69,17 +69,17 @@ def get_specific_filter(df: pl.DataFrame, column: str, lift: str, equipment: Lis
     Returns:
         Filtered DataFrame
     """
-    if equipment and len(equipment) > 0:
+    if equipment:
         result = df.filter(
             (pl.col(column) > 0) &
             (pl.col(f'{lift}Equipment').is_in(equipment))
         )
     else:
         result = df.filter(pl.col(column) > 0)
-    
+
     if bodyweight_column:
         return result.filter(pl.col(bodyweight_column) > 0)
-    
+
     return result
 
 def sample_data(df: pl.DataFrame, lift: str, sample_size: int, func_name: str) -> pl.DataFrame:
@@ -98,7 +98,7 @@ def sample_data(df: pl.DataFrame, lift: str, sample_size: int, func_name: str) -
     # Efficient sampling strategy
     if df.height > sample_size:
         # Get unique sexes
-        unique_sexes: List[str] = df['Sex'].unique().to_list()
+        unique_sexes: list[str] = df['Sex'].unique().to_list()
         
         # For stratified sampling by sex
         if len(unique_sexes) > 1:
@@ -128,7 +128,7 @@ def sample_data(df: pl.DataFrame, lift: str, sample_size: int, func_name: str) -
     return df
 
 @cache
-def get_metrics(triggered_id: str, need_full_update: bool) -> Dict[str, Dict[str, bool]]:
+def get_metrics(triggered_id: str, need_full_update: bool) -> dict[str, dict[str, bool]]:
     """
     Determine which metrics need to be updated based on the triggered component and update flag.
     
@@ -146,14 +146,14 @@ def get_metrics(triggered_id: str, need_full_update: bool) -> Dict[str, Dict[str
     bodyweight_changed = triggered_id == 'bodyweight-input'
     if bodyweight_changed:
         common_inputs.add('bodyweight-input')
-    
+
     # Map display names to input IDs
     lift_mapping = {
         'Squat': 'squat',
         'Bench': 'bench',
         'Deadlift': 'deadlift'
     }
-    
+
     # Define chart types and their additional required inputs beyond the common ones
     chart_additional_inputs = {
         'histogram': set(),  # No additional inputs beyond lift-specific and common inputs
@@ -161,22 +161,22 @@ def get_metrics(triggered_id: str, need_full_update: bool) -> Dict[str, Dict[str
         'scatter': {'bodyweight-input'},
         'wilks_scatter': {'bodyweight-input'}
     }
-    
+
     # Initialize result dictionary
-    figure_updates = {lift_name: {} for lift_name in lift_mapping.keys()}
+    figure_updates = {lift_name: {} for lift_name in lift_mapping}
     figure_updates['Total'] = {}
-    
+
     # Fill in individual lift metrics
     for lift_name, lift_id in lift_mapping.items():
         for chart_name, additional_inputs in chart_additional_inputs.items():
             input_set = common_inputs | {f'{lift_id}-input'} | additional_inputs
             figure_updates[lift_name][chart_name] = triggered_id in input_set or need_full_update
-    
+
     # Handle Total metrics (affected by any lift input)
     all_lift_inputs = {f'{lift_id}-input' for lift_id in lift_mapping.values()}
-    
+
     for chart_name, additional_inputs in chart_additional_inputs.items():
         total_inputs = common_inputs | all_lift_inputs | additional_inputs
         figure_updates['Total'][chart_name] = triggered_id in total_inputs or need_full_update
-    
+
     return figure_updates

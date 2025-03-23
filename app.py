@@ -69,9 +69,7 @@ def update_weight_class_options(sex: Literal['M', 'F', 'All']):
 )
 def toggle_info_modal(open_clicks: Optional[int], close_clicks: Optional[int], is_open: bool):
     """Toggle the information modal."""
-    if open_clicks or close_clicks:
-        return not is_open
-    return is_open
+    return not is_open if open_clicks or close_clicks else is_open
 
 @app.callback(
     [Output('squat-histogram', 'figure'),
@@ -101,9 +99,9 @@ def toggle_info_modal(open_clicks: Optional[int], close_clicks: Optional[int], i
      Input('weight-class-dropdown', 'value'),
      Input('units', 'value')]
 )
-def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: Optional[float], 
-                      deadlift: Optional[float], bodyweight: Optional[float], sex: str, 
-                      equipment: List[str], weight_class: str, units: str):
+def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: Optional[float],
+                       deadlift: Optional[float], bodyweight: Optional[float], sex: str,
+                       equipment: List[str], weight_class: str, units: str):
     """Optimized unified callback that handles all input changes."""
     # Get context to determine which input triggered the callback
     ctx = dash.callback_context

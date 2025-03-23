@@ -1,5 +1,4 @@
 import logging
-from typing import List
 
 import dash_bootstrap_components as dbc
 from dash import dcc, html
@@ -12,7 +11,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def lift_tabs(*lifts: str, width: int = 12) -> List[dbc.Tab]:
+def lift_tabs(*lifts: str, width: int = 12) -> list[dbc.Tab]:
     """
     Create tabs for different lifts.
     
@@ -31,7 +30,7 @@ def lift_tabs(*lifts: str, width: int = 12) -> List[dbc.Tab]:
         ]) for lift in lifts]
 
 def input_groups(*lifts: str, input_type: str = 'text', minimum: int = 0, step: float = 0.1,
-                 placeholder: str = 'kg', input_mode: str = 'numeric') -> List[dbc.InputGroup]:
+                 placeholder: str = 'kg', input_mode: str = 'numeric') -> list[dbc.InputGroup]:
     """
     Create input groups for different lifts.
     
@@ -52,7 +51,7 @@ def input_groups(*lifts: str, input_type: str = 'text', minimum: int = 0, step: 
         dbc.Input(id=f'{lift}-input', type=input_type, min=minimum, step=step, placeholder=placeholder, inputMode=input_mode)
     ], className="mb-2") for lift in lifts]
 
-def checklist_options(*options: str) -> List[dict]:
+def checklist_options(*options: str) -> list[dict]:
     """
     Create checklist options.
     

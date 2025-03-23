@@ -1,6 +1,6 @@
 import logging
 from functools import cache
-from typing import Dict, List, Literal, Optional, Tuple
+from typing import Literal, Optional
 
 import polars as pl
 
@@ -183,14 +183,17 @@ def calculate_user_weight_class(bodyweight: float, sex: Literal['M', 'F', 'All']
     """
     if sex == 'All':
         return "Unknown"
-    
-    for weight_limit, weight_class in WEIGHT_CLASSES.get(sex, []):
-        if bodyweight <= weight_limit:
-            return weight_class
-    
-    return "Unknown"
 
-def get_weight_class_options(sex: Literal['M', 'F', 'All'] = 'M') -> List[Dict[str, str]]:
+    return next(
+        (
+            weight_class
+            for weight_limit, weight_class in WEIGHT_CLASSES.get(sex, [])
+            if bodyweight <= weight_limit
+        ),
+        "Unknown",
+    )
+
+def get_weight_class_options(sex: Literal['M', 'F', 'All'] = 'M') -> list[dict[str, str]]:
     """
     Get the weight class options based on sex.
     
@@ -229,7 +232,7 @@ def get_weight_class_options(sex: Literal['M', 'F', 'All'] = 'M') -> List[Dict[s
     else:  # 'All'
         return [{'label': 'All Weight Classes', 'value': 'all'}]
 
-def get_lift_columns(lift: str, bdy: bool = False) -> Tuple[str, str, Optional[str]]:
+def get_lift_columns(lift: str, bdy: bool = False) -> tuple[str, str, Optional[str]]:
     """
     Get the column names for the given lift.
     
@@ -240,7 +243,7 @@ def get_lift_columns(lift: str, bdy: bool = False) -> Tuple[str, str, Optional[s
     Returns:
         Tuple of (lift_column, wilks_column, bodyweight_column)
     """
-    if lift in ['Squat', 'Bench', 'Deadlift', 'Total']:
+    if lift in {'Squat', 'Bench', 'Deadlift', 'Total'}:
         return (
             'TotalKg' if lift == 'Total' else f'Best3{lift}Kg',
             f'{lift}Wilks',

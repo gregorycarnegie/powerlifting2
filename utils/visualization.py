@@ -1,5 +1,6 @@
+import contextlib
 import logging
-from typing import List, Optional
+from typing import Optional
 
 import numpy as np
 import plotly.graph_objects as go
@@ -23,7 +24,7 @@ DEFAULT_SAMPLE_SIZE = config.get("visualization", "default_sample_size") or 1000
 BODYWEIGHT_TOLERANCE = config.get("visualization", "bodyweight_tolerance") or 5
 
 @advanced_cached_figure
-def create_histogram(df: pl.DataFrame, equipment: List[str], lift: str,
+def create_histogram(df: pl.DataFrame, equipment: list[str], lift: str,
                      user_value: Optional[float] = None, use_wilks: bool = False,
                      sample_size: int = DEFAULT_SAMPLE_SIZE) -> go.Figure:
     """
@@ -181,7 +182,7 @@ def create_histogram(df: pl.DataFrame, equipment: List[str], lift: str,
     return fig
 
 @advanced_cached_figure
-def create_scatter_plot(df: pl.DataFrame, equipment: List[str], lift: str, use_wilks: bool = False,
+def create_scatter_plot(df: pl.DataFrame, equipment: list[str], lift: str, use_wilks: bool = False,
                         user_bodyweight: Optional[float] = None, user_lift: Optional[float] = None,
                         sample_size: int = DEFAULT_SAMPLE_SIZE) -> go.Figure:
     """
@@ -208,21 +209,21 @@ def create_scatter_plot(df: pl.DataFrame, equipment: List[str], lift: str, use_w
             font=dict(size=14)
         )
         return fig
-    
+
     try:
         column, wilks_column, bodyweight_column = get_lift_columns(lift, bdy=True)
     except ValueError as e:
         logger.error(f"Unknown lift type: {e}")
         return go.Figure()
-    
+
     # Check if the Wilks column exists when requested
     if use_wilks and wilks_column not in df.columns:
         logger.warning(f"{wilks_column} not found in dataframe. Falling back to regular values.")
         use_wilks = False
-    
+
     # Filter for rows with positive lift and bodyweight values
     plot_df = get_specific_filter(df, column, lift, equipment, bodyweight_column)
-    
+
     if plot_df.height == 0:
         # Return empty figure with message
         fig = go.Figure()
@@ -232,16 +233,16 @@ def create_scatter_plot(df: pl.DataFrame, equipment: List[str], lift: str, use_w
             font=dict(size=14)
         )
         return fig
-    
+
     # Efficient sampling strategy
     plot_df = sample_data(plot_df, lift, sample_size, create_scatter_plot.__name__)
 
     # Determine which y-column to use
     y_column = wilks_column if use_wilks else column
-    
+
     # Create the scatter plot
     fig = go.Figure()
-    
+
     # Optimize for common case of two sexes (M/F)
     for sex, color, name in [('M', 'blue', 'Male Lifters'), ('F', 'pink', 'Female Lifters')]:
         sex_data = plot_df.filter(pl.col('Sex') == sex)
@@ -249,7 +250,7 @@ def create_scatter_plot(df: pl.DataFrame, equipment: List[str], lift: str, use_w
             # Extract data all at once for better performance
             x_values = sex_data[bodyweight_column].to_numpy()
             y_values = sex_data[y_column].to_numpy()
-            
+
             # Create more efficient scatter plot
             # Use smaller marker size and increased transparency for better visualization
             fig.add_trace(go.Scattergl(
@@ -264,7 +265,7 @@ def create_scatter_plot(df: pl.DataFrame, equipment: List[str], lift: str, use_w
                 ),
                 name=name
             ))
-    
+
     # Handle other sexes if present (rare but possible)
     other_sexes = [s for s in plot_df['Sex'].unique().to_list() if s not in ['M', 'F']]
     for sex in other_sexes:
@@ -277,7 +278,7 @@ def create_scatter_plot(df: pl.DataFrame, equipment: List[str], lift: str, use_w
                 marker=dict(size=4, opacity=0.5),
                 name=f'{sex} Lifters'
             ))
-    
+
     # Add user's data point if provided
     if user_bodyweight is not None and user_lift is not None and user_bodyweight > 0 and user_lift > 0:
         fig.add_trace(go.Scattergl(
@@ -292,7 +293,7 @@ def create_scatter_plot(df: pl.DataFrame, equipment: List[str], lift: str, use_w
             ),
             name='Your Lift'
         ))
-        
+
         # Calculate and display percentile if possible
         if plot_df.height > 0:
             # Get values close to the user's bodyweight
@@ -301,11 +302,11 @@ def create_scatter_plot(df: pl.DataFrame, equipment: List[str], lift: str, use_w
                 (pl.col(bodyweight_column) >= user_bodyweight - weight_range) &
                 (pl.col(bodyweight_column) <= user_bodyweight + weight_range)
             )
-            
+
             if similar_weight_lifters.height > 0:
                 y_values = similar_weight_lifters[y_column].to_numpy()
                 percentile = np.sum(y_values <= user_lift) / len(y_values) * 100
-                
+
                 fig.add_annotation(
                     x=user_bodyweight,
                     y=user_lift,
@@ -317,7 +318,7 @@ def create_scatter_plot(df: pl.DataFrame, equipment: List[str], lift: str, use_w
                     ax=40,
                     ay=-40
                 )
-    
+
     # Add trendlines
     if plot_df.height >= 10:
         for sex, color, name in [('M', 'rgba(0,0,255,0.7)', 'Male Trend'), ('F', 'rgba(255,105,180,0.7)', 'Female Trend')]:
@@ -325,13 +326,13 @@ def create_scatter_plot(df: pl.DataFrame, equipment: List[str], lift: str, use_w
             if sex_data.height >= 10:  # Only add trendline if enough data points
                 x = sex_data[bodyweight_column].to_numpy()
                 y = sex_data[y_column].to_numpy()
-                
+
                 # Simple linear fit
-                try:
+                with contextlib.suppress(Exception):
                     slope, intercept = np.polyfit(x, y, 1)
                     x_range = np.linspace(min(x), max(x), 100)
                     y_pred = slope * x_range + intercept
-                    
+
                     fig.add_trace(go.Scattergl(
                         x=x_range,
                         y=y_pred,
@@ -340,14 +341,10 @@ def create_scatter_plot(df: pl.DataFrame, equipment: List[str], lift: str, use_w
                         name=name,
                         showlegend=True
                     ))
-                except Exception:
-                    # Skip trendline if fit fails
-                    pass
-    
     # Customize layout
     y_title = f"{lift} Wilks Score" if use_wilks else f"{lift} (kg)"
     title = f"{lift} Wilks Score vs. Bodyweight" if use_wilks else f"{lift} vs. Bodyweight"
-    
+
     fig.update_layout(
         title=title,
         xaxis_title="Bodyweight (kg)",
@@ -365,11 +362,11 @@ def create_scatter_plot(df: pl.DataFrame, equipment: List[str], lift: str, use_w
             borderwidth=1
         )
     )
-    
+
     # Add grid lines for better readability
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightGrey')
-    
+
     return fig
 
 def empty_figure(text: str, error: Optional[Exception]=None, *, color: Optional[str]=None) -> go.Figure:

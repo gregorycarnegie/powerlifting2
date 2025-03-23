@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import tomli
 
@@ -37,7 +37,7 @@ class ConfigService:
             # Provide default configuration if file loading fails
             self._config = self._get_default_config()
     
-    def _get_default_config(self) -> Dict[str, Any]:
+    def _get_default_config(self) -> dict[str, Any]:
         """Return default configuration if file loading fails."""
         return {
             "app": {

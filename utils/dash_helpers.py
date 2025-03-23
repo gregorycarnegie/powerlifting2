@@ -1,8 +1,9 @@
 import hashlib
 import logging
 import time
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable
+from typing import Any
 
 import dash
 import plotly.graph_objects as go
@@ -74,6 +75,72 @@ def register_numeric_validation(dash_app: dash.Dash, input_id: str) -> None:
         [dash.State(input_id, 'id')]
     )
 
+def get_dataframe_hash(df: pl.DataFrame) -> str:
+    """Generate a hash for a DataFrame."""
+    if df is None:
+        return "none"
+    
+    if not (hasattr(df, 'height') and hasattr(df, 'columns')):
+        return f"obj_{id(df)}"
+    
+    try:
+        sample_values = _extract_sample_values(df)
+        column_info = f"{df.height}_{len(df.columns)}_{'-'.join(df.columns[:5])}"
+        df_data = f"{column_info}_{'_'.join(sample_values)}"
+        return hashlib.blake2b(df_data.encode(), digest_size=8).hexdigest()
+    except Exception as e:
+        logger.error(f"Error generating DataFrame hash: {e}")
+        return f"df_{hash(tuple(df.columns)) if hasattr(df, 'columns') else id(df)}"
+
+def _extract_sample_values(df: pl.DataFrame) -> list[str]:
+    """Extract sample values from the DataFrame for hash generation."""
+    sample_vals = []
+    if df.height == 0:
+        return sample_vals
+    
+    n_cols = min(3, len(df.columns))
+    n_rows = min(3, df.height)
+    
+    for col in df.columns[:n_cols]:
+        for i in range(n_rows):
+            try:
+                sample_vals.append(str(df[col][i]))
+            except Exception as e:
+                logger.error(f"Error getting sample value: {e}")
+    
+    return sample_vals[:10]
+
+def format_arg_for_key(arg: Any) -> str:
+    """Format a single argument for inclusion in cache key."""
+    if arg is None:
+        return "none"
+    elif isinstance(arg, (int, float, bool)):
+        return str(arg)
+    elif isinstance(arg, str):
+        return arg[:10]  # First 10 chars of strings
+    else:
+        return f"obj_{id(arg)}"
+
+def format_args_for_key(args: tuple) -> str:
+    """Format positional arguments for cache key."""
+    return "_".join(format_arg_for_key(arg) for arg in args)
+
+def format_kwargs_for_key(kwargs: dict) -> str:
+    """Format keyword arguments for cache key."""
+    formatted_items = []
+    
+    for k, v in sorted(kwargs.items()):
+        if v is None:
+            formatted_items.append(f"{k}_none")
+        elif isinstance(v, (int, float, bool)):
+            formatted_items.append(f"{k}_{v}")
+        elif isinstance(v, str):
+            formatted_items.append(f"{k}_{v[:10]}")
+        else:
+            formatted_items.append(f"{k}_obj_{id(v)}")
+    
+    return "_".join(formatted_items)
+
 def advanced_cache_key(func_name: str, df: pl.DataFrame, *args, **kwargs) -> str:
     """
     Generate a sophisticated cache key for figures.
@@ -87,61 +154,12 @@ def advanced_cache_key(func_name: str, df: pl.DataFrame, *args, **kwargs) -> str
     Returns:
         Hash string to use as cache key
     """
-    # Create a DataFrame fingerprint
-    if df is None:
-        df_hash = "none"
-    elif hasattr(df, 'height') and hasattr(df, 'columns'):
-        # This handles both Polars DataFrames and any DataFrame-like object
-        try:
-            # Try to include sample values for more uniqueness
-            sample_vals = []
-            if df.height > 0:
-                n_cols = min(3, len(df.columns))
-                n_rows = min(3, df.height)
-                for col in df.columns[:n_cols]:
-                    for i in range(n_rows):
-                        try:
-                            sample_vals.append(str(df[col][i]))
-                        except Exception as e:
-                            logger.error(f"Error getting sample value: {e}")
-                            pass
-            
-            # Combine structural info with sample values
-            df_data = f"{df.height}_{len(df.columns)}_{'-'.join(df.columns[:5])}_{'_'.join(sample_vals[:10])}"
-            df_hash = hashlib.blake2b(df_data.encode(), digest_size=8).hexdigest()
-        except Exception as e:
-            logger.error(f"Error generating DataFrame hash: {e}")
-            # Fallback for error cases
-            df_hash = f"df_{hash(tuple(df.columns)) if hasattr(df, 'columns') else id(df)}"
-    else:
-        # For other types
-        df_hash = f"obj_{id(df)}"
-    
-    # Process args and kwargs
-    args_str = []
-    for arg in args:
-        if arg is None:
-            args_str.append("none")
-        elif isinstance(arg, (int, float, bool)):
-            args_str.append(str(arg))
-        elif isinstance(arg, str):
-            args_str.append(arg[:10])  # First 10 chars of strings
-        else:
-            args_str.append(f"obj_{id(arg)}")
-    
-    kwargs_str = []
-    for k, v in sorted(kwargs.items()):
-        if v is None:
-            kwargs_str.append(f"{k}_none")
-        elif isinstance(v, (int, float, bool)):
-            kwargs_str.append(f"{k}_{v}")
-        elif isinstance(v, str):
-            kwargs_str.append(f"{k}_{v[:10]}")  # First 10 chars of strings
-        else:
-            kwargs_str.append(f"{k}_obj_{id(v)}")
+    df_hash = get_dataframe_hash(df)
+    args_str = format_args_for_key(args)
+    kwargs_str = format_kwargs_for_key(kwargs)
     
     # Combine all parts
-    key_parts = [func_name, df_hash, "_".join(args_str), "_".join(kwargs_str)]
+    key_parts = [func_name, df_hash, args_str, kwargs_str]
     combined_key = "_".join(key_parts)
     
     # Use a fast hash function
