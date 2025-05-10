@@ -4,7 +4,11 @@ import dash_bootstrap_components as dbc
 from dash import html
 
 from services.config_service import config
-from views.components import create_filter_sidebar, create_visualization_area, create_info_modal
+from views.components import (
+    create_filter_sidebar,
+    create_info_modal,
+    create_visualization_area,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -17,12 +21,12 @@ logger = logging.getLogger(__name__)
 def create_layout() -> html.Div:
     """
     Create the main application layout.
-    
+
     Returns:
         Dash HTML Div containing the layout
     """
     app_name = config.get("app", "name") or "Powerlifting Data Visualization"
-    
+
     return html.Div([
         # Header
         html.Div([
@@ -36,18 +40,18 @@ def create_layout() -> html.Div:
                 )
             ], className="d-flex justify-content-end mb-3")
         ], className="container"),
-        
+
         # Main content
         dbc.Container([
             dbc.Row([
                 # Left sidebar with filters
                 create_filter_sidebar(),
-                
+
                 # Main visualization area
                 create_visualization_area()
             ])
         ], fluid=True),
-        
+
         # Footer
         html.Footer([
             html.Div([
@@ -62,7 +66,7 @@ def create_layout() -> html.Div:
                 ], className="text-center text-muted")
             ], className="container py-3")
         ], className="mt-5 pt-4 border-top"),
-        
+
         # Modals
         create_info_modal()
     ])

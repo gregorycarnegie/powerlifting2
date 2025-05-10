@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import tomli
 
@@ -14,18 +14,18 @@ logger = logging.getLogger(__name__)
 
 class ConfigService:
     """Service for loading and accessing application configuration."""
-    
+
     _instance = None
     _config = None
-    
-    def __new__(cls, config_path: Optional[str] = None):
+
+    def __new__(cls, config_path: str | None = None):
         """Singleton pattern implementation."""
         if cls._instance is None:
-            cls._instance = super(ConfigService, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance._load_config(config_path)
         return cls._instance
-    
-    def _load_config(self, config_path: Optional[str] = None) -> None:
+
+    def _load_config(self, config_path: str | None = None) -> None:
         """Load configuration from TOML file."""
         config_path = config_path or 'config.toml'
         try:
@@ -36,7 +36,7 @@ class ConfigService:
             logger.error(f"Error loading configuration: {e}")
             # Provide default configuration if file loading fails
             self._config = self._get_default_config()
-    
+
     def _get_default_config(self) -> dict[str, Any]:
         """Return default configuration if file loading fails."""
         return {
@@ -69,39 +69,39 @@ class ConfigService:
                 "weight_conversion_factor": 2.20462
             }
         }
-    
-    def get(self, section: str, key: Optional[str] = None) -> Any:
+
+    def get(self, section: str, key: str | None = None) -> Any:
         """
         Get configuration value.
-        
+
         Args:
             section: Configuration section
             key: Configuration key within section (optional)
-            
+
         Returns:
             The configuration value, section dict, or None if not found
         """
         if section not in self._config:
             logger.warning(f"Configuration section '{section}' not found")
             return None
-        
+
         if key is None:
             return self._config[section]
-        
+
         if key not in self._config[section]:
             logger.warning(f"Configuration key '{key}' not found in section '{section}'")
             return None
-        
+
         return self._config[section][key]
-    
+
     def get_path(self, section: str, key: str) -> Path:
         """
         Get a configuration value as a Path object.
-        
+
         Args:
             section: Configuration section
             key: Configuration key for a path value
-            
+
         Returns:
             Path object
         """
@@ -109,28 +109,28 @@ class ConfigService:
         if path_str is None:
             logger.warning(f"Path for '{section}.{key}' not found, using default")
             return Path(".")
-        
+
         return Path(path_str)
-    
-    def get_data_path(self, key: Optional[str] = None) -> Path:
+
+    def get_data_path(self, key: str | None = None) -> Path:
         """
         Get a path within the data directory.
-        
+
         Args:
             key: File name within the data directory (optional)
-            
+
         Returns:
             Full path to the data directory or file
         """
         data_dir = self.get_path("data", "data_dir")
         if key is None:
             return data_dir
-        
+
         file_name = self.get("data", key)
         if file_name is None:
             logger.warning(f"Data file '{key}' not found in configuration")
             return data_dir
-        
+
         return data_dir / file_name
 
 # Create a global instance for easy import

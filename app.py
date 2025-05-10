@@ -1,7 +1,7 @@
 import datetime
 import logging
 import time
-from typing import List, Literal, Optional
+from typing import Literal
 
 import dash
 import dash_bootstrap_components as dbc
@@ -10,10 +10,21 @@ import polars as pl
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 
-from models import load_data, get_weight_class_options, get_wilks_value, calculate_user_weight_class
+from models import (
+    calculate_user_weight_class,
+    get_weight_class_options,
+    get_wilks_value,
+    load_data,
+)
 from services import config
-from utils import empty_figure, register_numeric_validation, create_histogram, create_scatter_plot, filter_data, \
-    get_metrics
+from utils import (
+    create_histogram,
+    create_scatter_plot,
+    empty_figure,
+    filter_data,
+    get_metrics,
+    register_numeric_validation,
+)
 from views import create_layout
 
 # Configure logging
@@ -31,7 +42,7 @@ CONVERSION_FACTOR = config.get("display", "weight_conversion_factor") or 2.20462
 
 # Set up the app
 app = dash.Dash(
-    __name__, 
+    __name__,
     external_stylesheets=[dbc.themes.BOOTSTRAP],
     meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}]
 )
@@ -67,7 +78,7 @@ def update_weight_class_options(sex: Literal['M', 'F', 'All']):
     [Input('open-info-button', 'n_clicks'), Input('close-info-modal', 'n_clicks')],
     [State('info-modal', 'is_open')],
 )
-def toggle_info_modal(open_clicks: Optional[int], close_clicks: Optional[int], is_open: bool):
+def toggle_info_modal(open_clicks: int | None, close_clicks: int | None, is_open: bool):
     """Toggle the information modal."""
     return not is_open if open_clicks or close_clicks else is_open
 
@@ -99,25 +110,28 @@ def toggle_info_modal(open_clicks: Optional[int], close_clicks: Optional[int], i
      Input('weight-class-dropdown', 'value'),
      Input('units', 'value')]
 )
-def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: Optional[float],
-                       deadlift: Optional[float], bodyweight: Optional[float], sex: str,
-                       equipment: List[str], weight_class: str, units: str):
+def update_all_figures(n_clicks: int | None, squat: float | None, bench: float | None,
+                       deadlift: float | None, bodyweight: float | None, sex: str,
+                       equipment: list[str], weight_class: str, units: str):
     """Optimized unified callback that handles all input changes."""
     # Get context to determine which input triggered the callback
     ctx = dash.callback_context
     if not ctx.triggered:
         raise PreventUpdate
-        
+
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    
+
     # Skip initial call if no trigger
     if triggered_id == '' and n_clicks is None:
         raise PreventUpdate
-    
+
     # Metric/Imperial conversion if needed
     conversion_factor = CONVERSION_FACTOR
-    converted_squat, converted_bench, converted_deadlift, converted_bodyweight = squat, bench, deadlift, bodyweight
-    
+    converted_squat = squat
+    converted_bench = bench
+    converted_deadlift = deadlift
+    converted_bodyweight = bodyweight
+
     if units == 'imperial':
         # Convert imperial inputs to metric for processing
         if squat is not None:
@@ -128,16 +142,16 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
             converted_deadlift = deadlift / conversion_factor
         if bodyweight is not None:
             converted_bodyweight = bodyweight / conversion_factor
-    
+
     #####################
     logger.info(f"Callback triggered by: {triggered_id}")
     logger.info(f"Current inputs: sex={sex}, bodyweight={bodyweight}, equipment={equipment}")
     logger.info(f"Context: {dash.callback_context.triggered}")
     #####################
-    
+
     # Generate a cache key based on filter parameters
     filter_cache_key = f"{sex}_{','.join(sorted(equipment) if equipment else [])}_{weight_class}_{units}_{converted_bodyweight}"
-    
+
     # Determine if we need a full data reload or just figure updates
     need_full_update = (
         triggered_id == 'update-button' or
@@ -149,11 +163,11 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
         filtered_df_cache['key'] != filter_cache_key or
         filtered_df_cache['df'] is None
     )
-    
+
     # For full updates, load and filter the data
     if need_full_update:
         logger.info(f"Full data update triggered by {triggered_id}")
-        
+
         # Load data if needed
         if 'lf' not in globals() or globals()['lf'] is None:
             try:
@@ -165,9 +179,13 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
                 logger.error(f"Error loading data: {e}")
                 # Return empty figures with error message
                 empty_fig = go.Figure()
-                empty_fig.add_annotation(text=f"Error loading data: {e}", showarrow=False, font=dict(size=14, color="red"))
+                empty_fig.add_annotation(
+                    text=f"Error loading data: {e}",
+                    showarrow=False,
+                    font=dict(size=14, color="red")
+                )
                 return [empty_fig] * 16 + [f"Error loading data: {e}"]
-        
+
         # Filter the data
         try:
             start_time = time.time()
@@ -177,9 +195,13 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
             logger.error(f"Error filtering data: {e}")
             # Return empty figures with error message
             empty_fig = go.Figure()
-            empty_fig.add_annotation(text=f"Error filtering data: {e}", showarrow=False, font=dict(size=14, color="red"))
+            empty_fig.add_annotation(
+                text=f"Error filtering data: {e}",
+                showarrow=False,
+                font=dict(size=14, color="red")
+            )
             return [empty_fig] * 16 + [f"Error filtering data: {e}"]
-        
+
         # Handle unit conversion if needed
         if units == 'imperial':
             conversion_cols = [
@@ -193,7 +215,7 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
                 (pl.col('TotalBodyweightKg') * conversion_factor).alias('TotalBodyweightKg')
             ]
             filtered_lf = filtered_lf.with_columns(conversion_cols)
-        
+
         # Execute the query and collect once after all filters
         try:
             start_time = time.time()
@@ -209,12 +231,12 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
                     try:
                         # Re-calculate Wilks scores on the filtered data
                         from models.wilks import calculate_wilks_scores
-                        
+
                         # Convert to LazyFrame, calculate Wilks scores, then collect
                         temp_lf = filtered_df.lazy()
                         temp_lf = calculate_wilks_scores(temp_lf)
                         filtered_df = temp_lf.collect()
-                        
+
                         logger.info(f"Recalculated Wilks scores, columns now: {filtered_df.columns[:10]}")
                     except Exception as e:
                         logger.error(f"Error calculating Wilks scores: {e}")
@@ -228,11 +250,11 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
                 err_msg = f"Error collecting filtered data: {e}. Schema: {schema_info[:100]}..."
             except Exception as e:
                 err_msg = f"Error collecting filtered data: {e}"
-                
+
             empty_fig = go.Figure()
             empty_fig.add_annotation(text=err_msg, showarrow=False, font=dict(size=14, color="red"))
             return [empty_fig] * 16 + [err_msg]
-        
+
         # Update the filtered data cache
         filtered_df_cache.update({
             'key': filter_cache_key,
@@ -243,17 +265,17 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
         # Use the cached filtered data
         logger.info(f"Using cached data for {triggered_id} - {filtered_df_cache['row_count']} rows")
         filtered_df = filtered_df_cache['df']
-    
+
     # Calculate user total if all lifts are provided
     user_total = None
     if all(x is not None for x in [converted_squat, converted_bench, converted_deadlift]):
         user_total = converted_squat + converted_bench + converted_deadlift
-    
+
     # Calculate user's weight class if bodyweight is provided
     user_weight_class = None
     if converted_bodyweight is not None and sex is not None and sex != 'All':
         user_weight_class = calculate_user_weight_class(converted_bodyweight, sex)
-    
+
     # Determine which figures need to be updated based on the trigger
     # This optimized approach only updates the necessary figures
     figure_updates = get_metrics(triggered_id, need_full_update)
@@ -271,20 +293,20 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
         'Deadlift': converted_deadlift,
         'Total': user_total
     }
-    
+
     # Initialize results with no_update placeholders
     results = [dash.no_update] * 16
-    
+
     # Count how many figures we'll actually generate
     figures_to_generate = sum(
-        1 for lift in figure_updates 
-        for fig_type in figure_updates[lift] 
+        1 for lift in figure_updates
+        for fig_type in figure_updates[lift]
         if figure_updates[lift][fig_type]
     )
-    
+
     if figures_to_generate > 0:
         logger.info(f"Generating {figures_to_generate} figures")
-    
+
     # Figure indexing map to match the expected output order
     figure_indices = {
         'Squat': {
@@ -312,11 +334,11 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
             'wilks_scatter': 15
         }
     }
-    
+
     # Generate only the figures that need updating
     for lift_type in ['Squat', 'Bench', 'Deadlift', 'Total']:
         user_value = lift_values[lift_type]
-        
+
         # For calculating user's Wilks scores
         user_wilks = None
         if sex and sex != 'All' and converted_bodyweight is not None and user_value is not None:
@@ -330,8 +352,8 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
                 logger.error(f"Error calculating {lift_type} Wilks: {e}")
         else:
             logger.info(f"Cannot calculate Wilks: sex={sex}, bodyweight={converted_bodyweight}, value={user_value}")
-            user_wilks = None        
-        
+            user_wilks = None
+
         # Generate regular histogram if needed
         if figure_updates[lift_type]['histogram']:
             idx = figure_indices[lift_type]['histogram']
@@ -341,7 +363,7 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
                 logger.info(f"Generated {lift_type} histogram in {time.time() - start_time:.2f}s")
             except Exception as e:
                 results[idx] = empty_figure(f"Error generating {lift_type} histogram: {e}", e)
-        
+
         # Generate Wilks histogram if needed
         idx = figure_indices[lift_type]['wilks_histogram']
         if sex != 'All' and converted_bodyweight is not None:
@@ -358,15 +380,15 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
             results[idx] = empty_figure("Please enter a bodyweight value to see the Wilks histogram")
         else:
             results[idx] = empty_figure("Wilks score requires selecting 'Male' or 'Female' in the Sex filter")
-        
+
         # Generate scatter plot if needed
         idx = figure_indices[lift_type]['scatter']
         if converted_bodyweight is not None:
-            
+
             try:
                 start_time = time.time()
                 results[idx] = create_scatter_plot(
-                    filtered_df, equipment, lift_type, 
+                    filtered_df, equipment, lift_type,
                     user_bodyweight=converted_bodyweight,
                     user_lift=user_value
                 )
@@ -375,14 +397,14 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
                 results[idx] = empty_figure(f"Error generating {lift_type} scatter plot: {e}", e)
         else:
             results[idx] = empty_figure("Please enter a bodyweight value to see the scatter plot")
-        
+
         # Generate Wilks scatter plot if needed
         idx = figure_indices[lift_type]['wilks_scatter']
         if sex != 'All' and converted_bodyweight is not None:
             try:
                 start_time = time.time()
                 results[idx] = create_scatter_plot(
-                    filtered_df, equipment, lift_type, 
+                    filtered_df, equipment, lift_type,
                     use_wilks=True,
                     user_bodyweight=converted_bodyweight,
                     user_lift=user_wilks
@@ -394,7 +416,7 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
              results[idx] = empty_figure("Please enter a bodyweight value to see the Wilks scatter plot")
         else:
             results[idx] = empty_figure("Wilks score requires selecting 'Male' or 'Female' in the Sex filter")
-    
+
     # Update last updated text if needed
     if need_full_update:
         # Get last updated date from data
@@ -407,22 +429,22 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
                     last_updated = datetime.datetime.fromisoformat(last_updated_str).strftime("%Y-%m-%d %H:%M")
                 except Exception:
                     pass
-        
+
         sex_info = f" ({sex})" if sex != 'All' else ""
         equipment_info = f", Equipment: {', '.join(equipment)}" if equipment and len(equipment) > 0 else ""
         w_class = user_weight_class or weight_class
         weight_class_info = f", Weight Class: {w_class}" if w_class else ""
-        
+
         row_count = filtered_df_cache['row_count']
         unit_text = "lbs" if units == 'imperial' else "kg"
         last_updated_text = f"Data last updated: {last_updated} | Showing {row_count:,} lifters{sex_info}{equipment_info}{weight_class_info} | Units: {unit_text}"
     else:
         # No need to update text if not doing a full update
         last_updated_text = dash.no_update
-    
+
     # Add the last updated text to the results
     results.append(last_updated_text)
-    
+
     return results
 
 @app.callback(
@@ -434,29 +456,29 @@ def update_all_figures(n_clicks: Optional[int], squat: Optional[float], bench: O
      State('bodyweight-input', 'value'),
      State('units', 'value')]
 )
-def update_twitter_link(n_clicks: Optional[int], squat: Optional[float], bench: Optional[float],
-                        deadlift: Optional[float], bodyweight: Optional[float], units: str) -> str:
+def update_twitter_link(n_clicks: int | None, squat: float | None, bench: float | None,
+                        deadlift: float | None, bodyweight: float | None, units: str) -> str:
     """Update the Twitter share link with the user's data."""
     if None in [squat, bench, deadlift, bodyweight]:
         return "#"
-    
+
     # Format the units
     unit_text = "lbs" if units == 'imperial' else "kg"
     total = squat + bench + deadlift
-    
+
     # Create share text
     share_text = (f"My powerlifting stats: Squat {squat}{unit_text}, "
                  f"Bench {bench}{unit_text}, Deadlift {deadlift}{unit_text}, "
                  f"Total {total}{unit_text} at {bodyweight}{unit_text} bodyweight. "
                  f"Check where you stand!")
-    
+
     return f"https://twitter.com/intent/tweet?text={share_text}"
 
 @app.callback(
     Output('share-facebook', 'href'),
     [Input('update-button', 'n_clicks')]
 )
-def update_facebook_link(n_clicks: Optional[int]) -> str:
+def update_facebook_link(n_clicks: int | None) -> str:
     """Update the Facebook share link."""
     return "https://www.facebook.com/sharer/sharer.php?u=https://powerlifting-visualizer.example.com"
 
@@ -464,7 +486,7 @@ def update_facebook_link(n_clicks: Optional[int]) -> str:
     Output('share-instagram', 'href'),
     [Input('update-button', 'n_clicks')]
 )
-def update_instagram_link(n_clicks: Optional[int]) -> str:
+def update_instagram_link(n_clicks: int | None) -> str:
     """Update the Instagram share link (placeholder)."""
     return "#"
 

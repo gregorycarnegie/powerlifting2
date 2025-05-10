@@ -1,6 +1,6 @@
 import logging
 from functools import cache
-from typing import Literal, Optional
+from typing import Literal
 
 import polars as pl
 
@@ -64,14 +64,14 @@ def wilks_polynomial[T](coefficients: tuple, bodyweight: T) -> T:
 def calculate_wilks_scores(df: pl.LazyFrame) -> pl.LazyFrame:
     """
     Calculate Wilks scores for different lifts.
-    
+
     Args:
         df: Input LazyFrame containing lifting data
-        
+
     Returns:
         LazyFrame with added Wilks score columns
     """
-    
+
     # Define a function to create the Wilks formula expression
     def wilks_formula(lift_col: str, bw_col: str, sex_col: pl.Expr) -> pl.Expr:
         return (
@@ -87,7 +87,7 @@ def calculate_wilks_scores(df: pl.LazyFrame) -> pl.LazyFrame:
             )
             .otherwise(0)
         )
-    
+
     # Calculate wilks for each lift type using the correct column names
     wilks_calculations = [
         wilks_formula('Best3SquatKg', 'SquatBodyweightKg', pl.col('Sex')).alias('SquatWilks'),
@@ -95,50 +95,50 @@ def calculate_wilks_scores(df: pl.LazyFrame) -> pl.LazyFrame:
         wilks_formula('Best3DeadliftKg', 'DeadliftBodyweightKg', pl.col('Sex')).alias('DeadliftWilks'),
         wilks_formula('TotalKg', 'TotalBodyweightKg', pl.col('Sex')).alias('TotalWilks')
     ]
-    
+
     return df.with_columns(wilks_calculations)
 
 @cache
-def get_wilks_value(total: Optional[float], bodyweight: Optional[float], sex: Optional[Literal['M', 'F', 'All']]) -> Optional[float]:
+def get_wilks_value(total: float | None, bodyweight: float | None, sex: Literal['M', 'F', 'All'] | None) -> float | None:
     """
     Calculate the Wilks score based on total, bodyweight, and sex.
-    
+
     Args:
         total: Lift total in kg
         bodyweight: Lifter's bodyweight in kg
         sex: Lifter's sex ('M', 'F', or 'All')
-        
+
     Returns:
         Calculated Wilks score or None if input is invalid
     """
     if total is None or bodyweight is None or sex is None or sex == 'All':
         return None
-    
+
     if sex == 'M':
         return total * wilks_polynomial(MALE_WILKS_COEFFICIENTS, bodyweight)
     elif sex == 'F':
         return total * wilks_polynomial(FEMALE_WILKS_COEFFICIENTS, bodyweight)
-    
+
     return None
 
-def calculate_ipf_weight_class(bodyweight_col: pl.Expr, sex_col: pl.Expr, age_col: Optional[pl.Expr] = None) -> pl.Expr:
+def calculate_ipf_weight_class(bodyweight_col: pl.Expr, sex_col: pl.Expr, age_col: pl.Expr | None = None) -> pl.Expr:
     """
     Calculate weight class using Polars expressions.
-    
+
     Args:
         bodyweight_col: Column with bodyweight values
         sex_col: Column with sex values ('M' or 'F')
         age_col: Optional column with age values
-        
+
     Returns:
         Polars expression that can be used in with_columns()
     """
     # Check if junior
     is_junior = pl.when(age_col.is_not_null() & (age_col.lt(23)) & (age_col.gt(0))).then(True).otherwise(False) if isinstance(age_col, pl.Expr) else pl.lit(False)
-    
+
     # Create the weight class expression using when-then-otherwise chain
     result = pl.lit(None).cast(pl.Utf8)
-    
+
     # Add junior classes first
     for sex, (limit, class_name) in JUNIOR_WEIGHT_CLASSES.items():
         result = (
@@ -146,7 +146,7 @@ def calculate_ipf_weight_class(bodyweight_col: pl.Expr, sex_col: pl.Expr, age_co
             .then(pl.lit(class_name))
             .otherwise(result)
         )
-    
+
     # Process weight classes for each sex
     for sx in ['M', 'F']:
         prev_limit = 0.0
@@ -157,17 +157,17 @@ def calculate_ipf_weight_class(bodyweight_col: pl.Expr, sex_col: pl.Expr, age_co
                 .otherwise(result)
             )
             prev_limit = limit
-    
+
     return result
 
 def calculate_user_weight_class(bodyweight: float, sex: Literal['M', 'F', 'All']) -> str:
     """
     Calculate the user's weight class based on bodyweight and sex.
-    
+
     Args:
         bodyweight: User's bodyweight in kg
         sex: User's sex ('M', 'F', or 'All')
-        
+
     Returns:
         Weight class as a string
     """
@@ -186,10 +186,10 @@ def calculate_user_weight_class(bodyweight: float, sex: Literal['M', 'F', 'All']
 def get_weight_class_options(sex: Literal['M', 'F', 'All'] = 'M') -> list[dict[str, str]]:
     """
     Get the weight class options based on sex.
-    
+
     Args:
         sex: 'M', 'F', or 'All'
-        
+
     Returns:
         List of dictionaries with label/value pairs for dropdown
     """
@@ -222,14 +222,14 @@ def get_weight_class_options(sex: Literal['M', 'F', 'All'] = 'M') -> list[dict[s
     else:  # 'All'
         return [{'label': 'All Weight Classes', 'value': 'all'}]
 
-def get_lift_columns(lift: str, bdy: bool = False) -> tuple[str, str, Optional[str]]:
+def get_lift_columns(lift: str, bdy: bool = False) -> tuple[str, str, str | None]:
     """
     Get the column names for the given lift.
-    
+
     Args:
         lift: Lift type ('Squat', 'Bench', 'Deadlift', or 'Total')
         bdy: Whether to include bodyweight column
-        
+
     Returns:
         Tuple of (lift_column, wilks_column, bodyweight_column)
     """

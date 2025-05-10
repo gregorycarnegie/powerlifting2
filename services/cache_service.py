@@ -5,7 +5,7 @@ import time
 import zlib
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from services.config_service import config
 
@@ -19,18 +19,18 @@ logger = logging.getLogger(__name__)
 
 class LRUCache:
     """A size-limited Least Recently Used (LRU) cache."""
-    
+
     def __init__(self, max_size: int = 100):
         self.cache = OrderedDict()
         self.max_size = max_size
-    
-    def get(self, key: str) -> Optional[Any]:
+
+    def get(self, key: str) -> Any | None:
         """
         Get an item from the cache.
-        
+
         Args:
             key: Cache key
-            
+
         Returns:
             Cached value or None if not found
         """
@@ -39,11 +39,11 @@ class LRUCache:
         # Move to end (most recently used)
         self.cache.move_to_end(key)
         return self.cache[key]
-    
+
     def put(self, key: str, value: Any) -> None:
         """
         Add or update an item in the cache.
-        
+
         Args:
             key: Cache key
             value: Value to cache
@@ -54,25 +54,25 @@ class LRUCache:
         # Remove the oldest if over the size limit
         if len(self.cache) > self.max_size:
             self.cache.popitem(last=False)
-    
+
     def __contains__(self, key: str) -> bool:
         return key in self.cache
-    
+
     def __len__(self) -> int:
         return len(self.cache)
 
 class CacheService:
     """Complete caching system with multi-level storage and metrics."""
-    
+
     _instance = None
-    
+
     def __new__(cls):
         """Singleton pattern implementation."""
         if cls._instance is None:
-            cls._instance = super(CacheService, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance._initialize()
         return cls._instance
-    
+
     def _initialize(self) -> None:
         """Initialize the cache with configuration settings."""
         # Load configuration
@@ -82,14 +82,14 @@ class CacheService:
         enable_compression = config.get("cache", "enable_compression")
         if enable_compression is None:
             enable_compression = True
-        
+
         # Initialize components
         self.memory_cache = LRUCache(memory_size)
         self.disk_cache_dir = disk_cache_dir
         self.disk_cache_dir.mkdir(exist_ok=True)
         self.max_age_seconds = max_age_hours * 3600
         self.enable_compression = enable_compression
-        
+
         # Initialize metrics
         self.stats = {
             'hits': 0,
@@ -101,20 +101,20 @@ class CacheService:
             'evictions': 0,
             'start_time': time.time()
         }
-        
+
         logger.info(f"Cache service initialized with memory_size={memory_size}, "
                    f"disk_cache_dir={disk_cache_dir}, "
                    f"max_age_hours={max_age_hours}, "
                    f"compression={enable_compression}")
-    
+
     def get(self, key: str, default: Any = None) -> Any:
         """
         Get item from cache with metrics tracking.
-        
+
         Args:
             key: Cache key
             default: Default value to return if key not found
-            
+
         Returns:
             Cached value or default if not found
         """
@@ -181,15 +181,15 @@ class CacheService:
         disk_path.touch()
 
         return result
-    
+
     def put(self, key: str, value: Any) -> bool:
         """
         Store item in both memory and disk cache.
-        
+
         Args:
             key: Cache key
             value: Value to cache
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -227,7 +227,7 @@ class CacheService:
         logger.error(f"{arg0}{e}")
         self.stats['errors'] += 1
         return arg2
-    
+
     def _clean_old_files(self) -> None:
         """Clean up old cache files."""
         try:
@@ -247,28 +247,28 @@ class CacheService:
                 logger.info(f"Cleaned up {count} old cache files")
         except Exception as e:
             logger.error(f"Error cleaning old cache files: {e}")
-    
+
     def get_stats(self) -> dict[str, Any]:
         """
         Return cache performance statistics.
-        
+
         Returns:
             Dictionary of cache statistics
         """
         total = self.stats['hits'] + self.stats['misses']
         uptime = time.time() - self.stats['start_time']
-        
+
         stats = {
             **self.stats,
             'hit_rate': self.stats['hits'] / total if total > 0 else 0,
-            'memory_hit_rate': self.stats['memory_hits'] / self.stats['hits'] if self.stats['hits'] > 0 else 0,
+            'memory_hit_rate': self.stats['memory_hits'] / self.stats['hits']if self.stats['hits'] > 0 else 0,
             'total_requests': total,
             'uptime_hours': uptime / 3600,
             'requests_per_hour': total / (uptime / 3600) if uptime > 0 else 0
         }
-        
+
         return stats
-    
+
     def clear(self) -> None:
         """Clear both memory and disk cache."""
         # Clear memory cache

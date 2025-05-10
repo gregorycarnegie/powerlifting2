@@ -14,11 +14,11 @@ logger = logging.getLogger(__name__)
 def lift_tabs(*lifts: str, width: int = 12) -> list[dbc.Tab]:
     """
     Create tabs for different lifts.
-    
+
     Args:
         *lifts: Lift names
         width: Column width
-        
+
     Returns:
         List of Dash Bootstrap tabs
     """
@@ -33,7 +33,7 @@ def input_groups(*lifts: str, input_type: str = 'text', minimum: int = 0, step: 
                  placeholder: str = 'kg', input_mode: str = 'numeric') -> list[dbc.InputGroup]:
     """
     Create input groups for different lifts.
-    
+
     Args:
         *lifts: Lift names
         input_type: Input type
@@ -42,7 +42,7 @@ def input_groups(*lifts: str, input_type: str = 'text', minimum: int = 0, step: 
         placeholder: Placeholder text
         input_mode: Input mode
         pattern: Input pattern
-        
+
     Returns:
         List of Dash Bootstrap input groups
     """
@@ -54,10 +54,10 @@ def input_groups(*lifts: str, input_type: str = 'text', minimum: int = 0, step: 
 def checklist_options(*options: str) -> list[dict]:
     """
     Create checklist options.
-    
+
     Args:
         *options: Option labels/values
-        
+
     Returns:
         List of options dictionaries
     """
@@ -66,7 +66,7 @@ def checklist_options(*options: str) -> list[dict]:
 def create_filter_sidebar() -> dbc.Col:
     """
     Create the filter sidebar component.
-    
+
     Returns:
         Dash Bootstrap Column with filter controls
     """
@@ -115,9 +115,9 @@ def create_filter_sidebar() -> dbc.Col:
             html.Div(input_groups("squat", "bench", "deadlift", "bodyweight")),
             # html.Div(id='bodyweight-input-trigger', style={'display': 'none'}),
             dbc.Button(
-                "Update Visualizations", 
-                id="update-button", 
-                color="primary", 
+                "Update Visualizations",
+                id="update-button",
+                color="primary",
                 className="w-100 mb-3"
             ),
             html.Div([
@@ -129,7 +129,7 @@ def create_filter_sidebar() -> dbc.Col:
 def create_visualization_area() -> dbc.Col:
     """
     Create the visualization area component.
-    
+
     Returns:
         Dash Bootstrap Column with visualization tabs
     """
@@ -164,7 +164,7 @@ def create_visualization_area() -> dbc.Col:
 def create_info_modal() -> dbc.Modal:
     """
     Create an information modal dialog.
-    
+
     Returns:
         Dash Bootstrap Modal
     """

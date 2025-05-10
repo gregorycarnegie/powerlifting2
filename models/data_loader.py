@@ -31,28 +31,28 @@ DATA_DIR.mkdir(exist_ok=True)
 def check_for_updates() -> bool:
     """
     Check if we need to update the dataset.
-    
+
     Returns:
         True if update is needed, False otherwise
     """
     update_interval_days = config.get("data", "update_interval_days") or 1
-    
+
     if not PARQUET_FILE.exists():
         return True
     if not LAST_UPDATED_FILE.exists():
         return True
-    
+
     with LAST_UPDATED_FILE.open(mode='r') as f:
         last_updated_str = f.read().strip()
     last_updated = datetime.datetime.fromisoformat(last_updated_str)
     now = datetime.datetime.now()
-    
+
     return (now - last_updated).days >= update_interval_days
 
 def download_and_process_data() -> pl.LazyFrame:
     """
     Download and process OpenPowerlifting data using an explicit schema.
-    
+
     Returns:
         Processed LazyFrame
     """
@@ -80,10 +80,10 @@ def zip_to_lazyframe(z: zipfile.ZipFile) -> pl.LazyFrame:
 def process_powerlifting_data(csv_path: Path) -> pl.LazyFrame:
     """
     Process powerlifting data from a CSV file.
-    
+
     Args:
         csv_path: Path to the CSV file
-        
+
     Returns:
         Processed LazyFrame
     """
@@ -99,7 +99,7 @@ def process_powerlifting_data(csv_path: Path) -> pl.LazyFrame:
         'Best3DeadliftKg': pl.Float32,
         'TotalKg': pl.Float32
     }
-    
+
     logger.info("Processing data using the predefined schema...")
     base_lf = (
         pl.scan_csv(
@@ -115,7 +115,7 @@ def process_powerlifting_data(csv_path: Path) -> pl.LazyFrame:
             (pl.col('TotalKg').gt(0))
         )
     )
-    
+
     # Calculate weight class
     logger.info("Calculating weight classes...")
     base_lf = base_lf.with_columns([
@@ -125,7 +125,7 @@ def process_powerlifting_data(csv_path: Path) -> pl.LazyFrame:
             pl.col('Age')
         ).alias('WeightClassKg')
     ])
-    
+
     # Process each lift type
     lift_types = [
         {
@@ -149,37 +149,37 @@ def process_powerlifting_data(csv_path: Path) -> pl.LazyFrame:
             'filter': pl.col('TotalKg').gt(0)
         }
     ]
-    
+
     # Process each lift type and store results
     lift_frames = {}
-    
+
     for lift in lift_types:
         lift_name = lift['name']
         value_col = lift['value_col']
         filter_expr = lift['filter']
-        
+
         # Create a lift-specific lazy frame
         cols_to_select = ['Name']
         if lift_name == 'Squat':  # Only squat needs Sex for joins
             cols_to_select.append('Sex')
-            
+
         cols_to_select.extend([
             value_col,
             'Equipment',
             'BodyweightKg',
             'WeightClassKg'
         ])
-        
+
         lift_lf = (
             base_lf
             .filter(filter_expr)
             .select(cols_to_select)
         )
-        
+
         # Window function to find max values
         window = pl.col('Name')
         max_col_alias = f"Max{lift_name}"
-        
+
         lift_lf = (
             lift_lf
             .with_columns([
@@ -187,49 +187,49 @@ def process_powerlifting_data(csv_path: Path) -> pl.LazyFrame:
             ])
             .filter(pl.col(value_col) == pl.col(max_col_alias))
         )
-        
+
         # Select and rename columns
         select_cols = ['Name']
         if lift_name == 'Squat':
             select_cols.append('Sex')
-            
+
         select_cols.extend([
             pl.col(value_col),
             pl.col('Equipment').alias(f"{lift_name}Equipment"),
             pl.col('BodyweightKg').alias(f"{lift_name}BodyweightKg"),
             pl.col('WeightClassKg').alias(f"{lift_name}WeightClassKg")
         ])
-        
+
         lift_lf = lift_lf.select(select_cols)
-        
+
         # Group by Name (and Sex for squat)
         group_cols = ['Name']
         if lift_name == 'Squat':
             group_cols.append('Sex')
-            
+
         agg_cols = [
             pl.max(value_col).alias(value_col),
             pl.first(f"{lift_name}Equipment").alias(f"{lift_name}Equipment"),
             pl.first(f"{lift_name}BodyweightKg").alias(f"{lift_name}BodyweightKg"),
             pl.first(f"{lift_name}WeightClassKg").alias(f"{lift_name}WeightClassKg")
         ]
-        
+
         lift_lf = lift_lf.group_by(group_cols).agg(agg_cols)
         lift_frames[lift_name.lower()] = lift_lf
-    
+
     # Join all the LazyFrames
     # Start with squat as the base
     result_lf = lift_frames['squat']
-    
+
     # Join with bench, deadlift, and total
     for lift_name in ['bench', 'deadlift', 'total']:
         result_lf = result_lf.join(
-            lift_frames[lift_name], 
-            on='Name', 
-            how='full', 
+            lift_frames[lift_name],
+            on='Name',
+            how='full',
             suffix=f'_{lift_name}'
         )
-    
+
     # Fill nulls for numeric columns
     result_lf = result_lf.with_columns([
         pl.when(pl.col('Best3SquatKg').is_null()).then(0).otherwise(pl.col('Best3SquatKg')).alias('Best3SquatKg'),
@@ -237,17 +237,17 @@ def process_powerlifting_data(csv_path: Path) -> pl.LazyFrame:
         pl.when(pl.col('Best3DeadliftKg').is_null()).then(0).otherwise(pl.col('Best3DeadliftKg')).alias('Best3DeadliftKg'),
         pl.when(pl.col('TotalKg').is_null()).then(0).otherwise(pl.col('TotalKg')).alias('TotalKg')
     ])
-    
+
     # Calculate Wilks scores
     result_lf = calculate_wilks_scores(result_lf)
-    
+
     # Log column availability for debugging
     logger.info("Columns available after processing (before writing to parquet):")
     try:
         logger.info(f"Columns: {result_lf.collect_schema().names()}")
     except Exception as e:
         logger.error(f"Error fetching schema: {e}")
-    
+
     # Instead of using sink_parquet directly, we'll collect and then write
     try:
         logger.info(f"Collecting and saving processed data to {PARQUET_FILE}...")
@@ -272,17 +272,17 @@ def process_powerlifting_data(csv_path: Path) -> pl.LazyFrame:
             logger.info("Attempting to save as CSV instead...")
             collected_df.write_csv(CSV_BACKUP)
             logger.info(f"Saved data as CSV to {CSV_BACKUP}")
-    
+
     with LAST_UPDATED_FILE.open(mode='w') as f:
         f.write(datetime.datetime.now().isoformat())
-    
+
     logger.info("Data update complete!")
     return result_lf
 
 def load_data() -> pl.LazyFrame:
     """
     Load the data, downloading it first if necessary.
-    
+
     Returns:
         Processed LazyFrame
     """
