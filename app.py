@@ -78,7 +78,11 @@ def update_weight_class_options(sex: Literal['M', 'F', 'All']):
     [Input('open-info-button', 'n_clicks'), Input('close-info-modal', 'n_clicks')],
     [State('info-modal', 'is_open')],
 )
-def toggle_info_modal(open_clicks: int | None, close_clicks: int | None, is_open: bool):
+def toggle_info_modal(
+    open_clicks: int | None,
+    close_clicks: int | None,
+    is_open: bool
+):
     """Toggle the information modal."""
     return not is_open if open_clicks or close_clicks else is_open
 
@@ -110,9 +114,17 @@ def toggle_info_modal(open_clicks: int | None, close_clicks: int | None, is_open
      Input('weight-class-dropdown', 'value'),
      Input('units', 'value')]
 )
-def update_all_figures(n_clicks: int | None, squat: float | None, bench: float | None,
-                       deadlift: float | None, bodyweight: float | None, sex: str,
-                       equipment: list[str], weight_class: str, units: str):
+def update_all_figures(
+    n_clicks: int | None,
+    squat: float | None,
+    bench: float | None,
+    deadlift: float | None,
+    bodyweight: float | None,
+    sex: str,
+    equipment: list[str],
+    weight_class: str,
+    units: str
+):
     """Optimized unified callback that handles all input changes."""
     # Get context to determine which input triggered the callback
     ctx = dash.callback_context
@@ -456,8 +468,14 @@ def update_all_figures(n_clicks: int | None, squat: float | None, bench: float |
      State('bodyweight-input', 'value'),
      State('units', 'value')]
 )
-def update_twitter_link(n_clicks: int | None, squat: float | None, bench: float | None,
-                        deadlift: float | None, bodyweight: float | None, units: str) -> str:
+def update_twitter_link(
+    n_clicks: int | None,
+    squat: float | None,
+    bench: float | None,
+    deadlift: float | None,
+    bodyweight: float | None,
+    units: str
+) -> str:
     """Update the Twitter share link with the user's data."""
     if None in [squat, bench, deadlift, bodyweight]:
         return "#"

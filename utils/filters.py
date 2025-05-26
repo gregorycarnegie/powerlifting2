@@ -12,8 +12,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def filter_data(lf: pl.LazyFrame, sex: Literal['M', 'F', 'All'] | None = None,
-                equipment: list[str] | None = None, weight_class: str | None = None) -> pl.LazyFrame:
+def filter_data(
+        lf: pl.LazyFrame,
+        sex: Literal['M', 'F', 'All'] | None = None,
+        equipment: list[str] | None = None,
+        weight_class: str | None = None
+) -> pl.LazyFrame:
     """
     Filter the LazyFrame based on user selections.
 
@@ -54,8 +58,13 @@ def filter_data(lf: pl.LazyFrame, sex: Literal['M', 'F', 'All'] | None = None,
 
     return lf
 
-def get_specific_filter(df: pl.DataFrame, column: str, lift: str, equipment: list[str],
-                        bodyweight_column: str | None = None) -> pl.DataFrame:
+def get_specific_filter(
+        df: pl.DataFrame,
+        column: str,
+        lift: str,
+        equipment: list[str],
+        bodyweight_column: str | None = None
+) -> pl.DataFrame:
     """
     Apply lift-specific filtering to a DataFrame.
 
@@ -82,7 +91,12 @@ def get_specific_filter(df: pl.DataFrame, column: str, lift: str, equipment: lis
 
     return result
 
-def sample_data(df: pl.DataFrame, lift: str, sample_size: int, func_name: str) -> pl.DataFrame:
+def sample_data(
+        df: pl.DataFrame,
+        lift: str,
+        sample_size: int,
+        func_name: str
+) -> pl.DataFrame:
     """
     Sample the data for visualizations to improve performance.
 

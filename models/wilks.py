@@ -99,7 +99,11 @@ def calculate_wilks_scores(df: pl.LazyFrame) -> pl.LazyFrame:
     return df.with_columns(wilks_calculations)
 
 @cache
-def get_wilks_value(total: float | None, bodyweight: float | None, sex: Literal['M', 'F', 'All'] | None) -> float | None:
+def get_wilks_value(
+    total: float | None,
+    bodyweight: float | None,
+    sex: Literal['M', 'F', 'All'] | None
+) -> float | None:
     """
     Calculate the Wilks score based on total, bodyweight, and sex.
 
@@ -121,7 +125,11 @@ def get_wilks_value(total: float | None, bodyweight: float | None, sex: Literal[
 
     return None
 
-def calculate_ipf_weight_class(bodyweight_col: pl.Expr, sex_col: pl.Expr, age_col: pl.Expr | None = None) -> pl.Expr:
+def calculate_ipf_weight_class(
+        bodyweight_col: pl.Expr,
+        sex_col: pl.Expr,
+        age_col: pl.Expr | None = None
+) -> pl.Expr:
     """
     Calculate weight class using Polars expressions.
 

@@ -35,7 +35,12 @@ def create_empty_figure(message: str) -> go.Figure:
     return fig
 
 
-def get_lift_data(df: pl.DataFrame, lift: str, equipment: list[str], use_wilks: bool = False) -> tuple[pl.DataFrame, str, str | None, str | None]:
+def get_lift_data(
+        df: pl.DataFrame,
+        lift: str,
+        equipment: list[str],
+        use_wilks: bool = False
+) -> tuple[pl.DataFrame, str, str | None, str | None]:
     """Extract and prepare lift data from DataFrame."""
     try:
         column, wilks_column, _ = get_lift_columns(lift)
@@ -84,7 +89,12 @@ def setup_histogram_bins(values: np.ndarray) -> dict[str, Any]:
     )
 
 
-def add_histogram_traces(fig: go.Figure, plot_df: pl.DataFrame, plot_column: str, unique_sexes: list[str]) -> tuple[go.Figure, bool]:
+def add_histogram_traces(
+        fig: go.Figure,
+        plot_df: pl.DataFrame,
+        plot_column: str,
+        unique_sexes: list[str]
+) -> tuple[go.Figure, bool]:
     """Add histogram traces to the figure."""
     # Check if we have multiple sexes
     has_multiple_sexes = len(unique_sexes) > 1
@@ -128,7 +138,11 @@ def add_histogram_traces(fig: go.Figure, plot_df: pl.DataFrame, plot_column: str
     return fig, has_multiple_sexes
 
 
-def add_user_value_annotation(fig: go.Figure, user_value: float, values: np.ndarray) -> go.Figure:
+def add_user_value_annotation(
+        fig: go.Figure,
+        user_value: float,
+        values: np.ndarray
+) -> go.Figure:
     """Add annotation for the user's lift value on histogram."""
     fig.add_vline(
         x=user_value,
@@ -153,7 +167,12 @@ def add_user_value_annotation(fig: go.Figure, user_value: float, values: np.ndar
     return fig
 
 
-def setup_histogram_layout(fig: go.Figure, lift: str, use_wilks: bool, has_multiple_sexes: bool) -> go.Figure:
+def setup_histogram_layout(
+        fig: go.Figure,
+        lift: str,
+        use_wilks: bool,
+        has_multiple_sexes: bool
+) -> go.Figure:
     """Set up the histogram layout."""
     title = f"{lift} Wilks Histogram" if use_wilks else f"{lift} Histogram"
     x_title = f"{lift} Wilks Score" if use_wilks else f"{lift} (kg)"
@@ -179,9 +198,14 @@ def setup_histogram_layout(fig: go.Figure, lift: str, use_wilks: bool, has_multi
 
 
 @advanced_cached_figure
-def create_histogram(df: pl.DataFrame, equipment: list[str], lift: str,
-                     user_value: float | None = None, use_wilks: bool = False,
-                     sample_size: int = DEFAULT_SAMPLE_SIZE) -> go.Figure:
+def create_histogram(
+    df: pl.DataFrame,
+    equipment: list[str],
+    lift: str,
+    user_value: float | None = None,
+    use_wilks: bool = False,
+    sample_size: int = DEFAULT_SAMPLE_SIZE
+) -> go.Figure:
     """
     Create a histogram for the specified lift with improved performance.
 
@@ -230,7 +254,12 @@ def create_histogram(df: pl.DataFrame, equipment: list[str], lift: str,
     return fig
 
 
-def get_scatter_lift_data(df: pl.DataFrame, lift: str, equipment: list[str], use_wilks: bool = False) -> tuple[pl.DataFrame, str, str | None, str, str]:
+def get_scatter_lift_data(
+        df: pl.DataFrame,
+        lift: str,
+        equipment: list[str],
+        use_wilks: bool = False
+) -> tuple[pl.DataFrame, str, str | None, str, str]:
     """Extract and prepare lift and bodyweight data for a scatter plot."""
     try:
         column, wilks_column, bodyweight_column = get_lift_columns(lift, bdy=True)
@@ -251,7 +280,12 @@ def get_scatter_lift_data(df: pl.DataFrame, lift: str, equipment: list[str], use
     return plot_df, column, wilks_column, y_column, bodyweight_column
 
 
-def add_scatter_traces(fig: go.Figure, plot_df: pl.DataFrame, bodyweight_column: str, y_column: str) -> go.Figure:
+def add_scatter_traces(
+        fig: go.Figure,
+        plot_df: pl.DataFrame,
+        bodyweight_column: str,
+        y_column: str
+) -> go.Figure:
     """Add scatter traces for each sex group in the data."""
     # Optimize for a common case of two sexes (M/F)
     for sex, color, name in [('M', 'blue', 'Male Lifters'), ('F', 'pink', 'Female Lifters')]:
@@ -291,8 +325,14 @@ def add_scatter_traces(fig: go.Figure, plot_df: pl.DataFrame, bodyweight_column:
     return fig
 
 
-def add_user_point(fig: go.Figure, user_bodyweight: float, user_lift: float,
-                   plot_df: pl.DataFrame, bodyweight_column: str, y_column: str) -> go.Figure:
+def add_user_point(
+        fig: go.Figure,
+        user_bodyweight: float,
+        user_lift: float,
+        plot_df: pl.DataFrame,
+        bodyweight_column: str,
+        y_column: str
+) -> go.Figure:
     """Add user's data point to scatter plot."""
     fig.add_trace(go.Scattergl(
         x=[user_bodyweight],
@@ -335,7 +375,12 @@ def add_user_point(fig: go.Figure, user_bodyweight: float, user_lift: float,
     return fig
 
 
-def add_trendlines(fig: go.Figure, plot_df: pl.DataFrame, bodyweight_column: str, y_column: str) -> go.Figure:
+def add_trendlines(
+        fig: go.Figure,
+        plot_df: pl.DataFrame,
+        bodyweight_column: str,
+        y_column: str
+) -> go.Figure:
     """Add trendlines to scatter plot."""
     if plot_df.height < 10:
         return fig
@@ -396,9 +441,15 @@ def setup_scatter_layout(fig: go.Figure, lift: str, use_wilks: bool) -> go.Figur
 
 
 @advanced_cached_figure
-def create_scatter_plot(df: pl.DataFrame, equipment: list[str], lift: str, use_wilks: bool = False,
-                        user_bodyweight: float | None = None, user_lift: float | None = None,
-                        sample_size: int = DEFAULT_SAMPLE_SIZE) -> go.Figure:
+def create_scatter_plot(
+    df: pl.DataFrame,
+    equipment: list[str],
+    lift: str,
+    use_wilks: bool = False,
+    user_bodyweight: float | None = None,
+    user_lift: float | None = None,
+    sample_size: int = DEFAULT_SAMPLE_SIZE
+) -> go.Figure:
     """
     Create a scatter plot of the lift vs. bodyweight with improved performance.
 

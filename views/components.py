@@ -29,8 +29,14 @@ def lift_tabs(*lifts: str, width: int = 12) -> list[dbc.Tab]:
         dbc.Row([dbc.Col([dcc.Graph(id=f'{lift}-wilks-scatter')], width=width)])
         ]) for lift in lifts]
 
-def input_groups(*lifts: str, input_type: str = 'text', minimum: int = 0, step: float = 0.1,
-                 placeholder: str = 'kg', input_mode: str = 'numeric') -> list[dbc.InputGroup]:
+def input_groups(
+        *lifts: str,
+        input_type: str = 'text',
+        minimum: int = 0,
+        step: float = 0.1,
+        placeholder: str = 'kg',
+        input_mode: str = 'numeric'
+) -> list[dbc.InputGroup]:
     """
     Create input groups for different lifts.
 
@@ -48,7 +54,14 @@ def input_groups(*lifts: str, input_type: str = 'text', minimum: int = 0, step: 
     """
     return [dbc.InputGroup([
         dbc.InputGroupText(f"{lift.capitalize()}"),
-        dbc.Input(id=f'{lift}-input', type=input_type, min=minimum, step=step, placeholder=placeholder, inputMode=input_mode)
+        dbc.Input(
+            id=f'{lift}-input',
+            type=input_type,
+            min=minimum,
+            step=step,
+            placeholder=placeholder,
+            inputMode=input_mode
+        )
     ], className="mb-2") for lift in lifts]
 
 def checklist_options(*options: str) -> list[dict]:

@@ -141,7 +141,12 @@ def format_kwargs_for_key(kwargs: dict) -> str:
 
     return "_".join(formatted_items)
 
-def advanced_cache_key(func_name: str, df: pl.DataFrame, *args, **kwargs) -> str:
+def advanced_cache_key(
+        func_name: str,
+        df: pl.DataFrame,
+        *args,
+        **kwargs
+) -> str:
     """
     Generate a sophisticated cache key for figures.
 
