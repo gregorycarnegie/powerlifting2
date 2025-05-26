@@ -109,11 +109,11 @@ class CacheService:
 
     def get(self, key: str, default: Any = None) -> Any:
         """
-        Get item from cache with metrics tracking.
+        Get item from the cache with metrics tracking.
 
         Args:
             key: Cache key
-            default: Default value to return if key not found
+            default: Default value to return if key is not found
 
         Returns:
             Cached value or default if not found
@@ -134,7 +134,7 @@ class CacheService:
         # Try disk cache
         disk_path = self.disk_cache_dir / f"{key}.pickle"
         if disk_path.exists():
-            # Check if file is too old
+            # Check if a file is too old
             file_age = time.time() - disk_path.stat().st_mtime
             if file_age > self.max_age_seconds:
                 logger.debug(f"Cache entry expired: {key[:20]}...")
@@ -157,7 +157,7 @@ class CacheService:
         return default
 
     def _read_disk_cached_item(self, disk_path: Path, key: str):
-        # Read from disk
+        # Read from a disk
         with open(disk_path, "rb") as f:
             if self.enable_compression:
                 try:
@@ -216,7 +216,7 @@ class CacheService:
                 return False
 
             # Run occasional maintenance
-            if random.random() < 0.01:  # 1% chance to clean on each write
+            if random.random() < 0.01:  # 1% chance to clean on each writing
                 self._clean_old_files()
 
             return True

@@ -136,7 +136,7 @@ def calculate_ipf_weight_class(bodyweight_col: pl.Expr, sex_col: pl.Expr, age_co
     # Check if junior
     is_junior = pl.when(age_col.is_not_null() & (age_col.lt(23)) & (age_col.gt(0))).then(True).otherwise(False) if isinstance(age_col, pl.Expr) else pl.lit(False)
 
-    # Create the weight class expression using when-then-otherwise chain
+    # Create the weight class expression using when>then>otherwise chain
     result = pl.lit(None).cast(pl.Utf8)
 
     # Add junior classes first

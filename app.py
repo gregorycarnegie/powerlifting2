@@ -121,7 +121,7 @@ def update_all_figures(n_clicks: int | None, squat: float | None, bench: float |
 
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    # Skip initial call if no trigger
+    # Skip the initial call if no trigger
     if triggered_id == '' and n_clicks is None:
         raise PreventUpdate
 
@@ -177,7 +177,7 @@ def update_all_figures(n_clicks: int | None, squat: float | None, bench: float |
                 logger.info(f"Data loading completed in {time.time() - start_time:.2f}s")
             except Exception as e:
                 logger.error(f"Error loading data: {e}")
-                # Return empty figures with error message
+                # Return empty figures with an error message
                 empty_fig = go.Figure()
                 empty_fig.add_annotation(
                     text=f"Error loading data: {e}",
@@ -193,7 +193,7 @@ def update_all_figures(n_clicks: int | None, squat: float | None, bench: float |
             logger.info(f"Data filtering completed in {time.time() - start_time:.2f}s")
         except Exception as e:
             logger.error(f"Error filtering data: {e}")
-            # Return empty figures with error message
+            # Return empty figures with an error message
             empty_fig = go.Figure()
             empty_fig.add_annotation(
                 text=f"Error filtering data: {e}",
@@ -271,7 +271,7 @@ def update_all_figures(n_clicks: int | None, squat: float | None, bench: float |
     if all(x is not None for x in [converted_squat, converted_bench, converted_deadlift]):
         user_total = converted_squat + converted_bench + converted_deadlift
 
-    # Calculate user's weight class if bodyweight is provided
+    # Calculate a user's weight class if bodyweight is provided
     user_weight_class = None
     if converted_bodyweight is not None and sex is not None and sex != 'All':
         user_weight_class = calculate_user_weight_class(converted_bodyweight, sex)
@@ -307,7 +307,7 @@ def update_all_figures(n_clicks: int | None, squat: float | None, bench: float |
     if figures_to_generate > 0:
         logger.info(f"Generating {figures_to_generate} figures")
 
-    # Figure indexing map to match the expected output order
+    # Figure an indexing map to match the expected output order
     figure_indices = {
         'Squat': {
             'histogram': 0,
@@ -354,7 +354,7 @@ def update_all_figures(n_clicks: int | None, squat: float | None, bench: float |
             logger.info(f"Cannot calculate Wilks: sex={sex}, bodyweight={converted_bodyweight}, value={user_value}")
             user_wilks = None
 
-        # Generate regular histogram if needed
+        # Generate a regular histogram if needed
         if figure_updates[lift_type]['histogram']:
             idx = figure_indices[lift_type]['histogram']
             try:
@@ -381,7 +381,7 @@ def update_all_figures(n_clicks: int | None, squat: float | None, bench: float |
         else:
             results[idx] = empty_figure("Wilks score requires selecting 'Male' or 'Female' in the Sex filter")
 
-        # Generate scatter plot if needed
+        # Generate a scatter plot if needed
         idx = figure_indices[lift_type]['scatter']
         if converted_bodyweight is not None:
 
@@ -419,7 +419,7 @@ def update_all_figures(n_clicks: int | None, squat: float | None, bench: float |
 
     # Update last updated text if needed
     if need_full_update:
-        # Get last updated date from data
+        # Get the last updated date from data
         last_updated_file = config.get_data_path("last_updated_file")
         last_updated = "Unknown"
         if last_updated_file.exists():

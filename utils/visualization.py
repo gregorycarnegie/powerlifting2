@@ -62,13 +62,13 @@ def calculate_percentile(values: np.ndarray, user_value: float) -> float:
 
 
 def setup_histogram_bins(values: np.ndarray) -> dict[str, Any]:
-    """Setup histogram bins based on data values."""
+    """Set up histogram bins based on data values."""
     if len(values) == 0:
         return dict(nbinsx=50)
 
     value_min = values.min()
     value_max = values.max()
-    # Ensure sensible range even with outliers
+    # Ensure a sensible range even with outliers
     value_range = max(value_max - value_min, 1)  # Avoid division by zero
     # Create bins with padding
     bin_size = value_range / 50
@@ -85,7 +85,7 @@ def setup_histogram_bins(values: np.ndarray) -> dict[str, Any]:
 
 
 def add_histogram_traces(fig: go.Figure, plot_df: pl.DataFrame, plot_column: str, unique_sexes: list[str]) -> tuple[go.Figure, bool]:
-    """Add histogram traces to figure."""
+    """Add histogram traces to the figure."""
     # Check if we have multiple sexes
     has_multiple_sexes = len(unique_sexes) > 1
 
@@ -102,7 +102,7 @@ def add_histogram_traces(fig: go.Figure, plot_df: pl.DataFrame, plot_column: str
             if sex_data.height > 0:
                 values = sex_data[plot_column].to_numpy()
 
-                # Choose color based on sex
+                # Choose colour based on sex
                 color = 'blue' if sex == 'M' else 'pink'
                 name = 'Male' if sex == 'M' else 'Female'
 
@@ -129,7 +129,7 @@ def add_histogram_traces(fig: go.Figure, plot_df: pl.DataFrame, plot_column: str
 
 
 def add_user_value_annotation(fig: go.Figure, user_value: float, values: np.ndarray) -> go.Figure:
-    """Add annotation for user's lift value on histogram."""
+    """Add annotation for the user's lift value on histogram."""
     fig.add_vline(
         x=user_value,
         line_width=2,
@@ -154,7 +154,7 @@ def add_user_value_annotation(fig: go.Figure, user_value: float, values: np.ndar
 
 
 def setup_histogram_layout(fig: go.Figure, lift: str, use_wilks: bool, has_multiple_sexes: bool) -> go.Figure:
-    """Set up histogram layout."""
+    """Set up the histogram layout."""
     title = f"{lift} Wilks Histogram" if use_wilks else f"{lift} Histogram"
     x_title = f"{lift} Wilks Score" if use_wilks else f"{lift} (kg)"
 
@@ -231,7 +231,7 @@ def create_histogram(df: pl.DataFrame, equipment: list[str], lift: str,
 
 
 def get_scatter_lift_data(df: pl.DataFrame, lift: str, equipment: list[str], use_wilks: bool = False) -> tuple[pl.DataFrame, str, str | None, str, str]:
-    """Extract and prepare lift and bodyweight data for scatter plot."""
+    """Extract and prepare lift and bodyweight data for a scatter plot."""
     try:
         column, wilks_column, bodyweight_column = get_lift_columns(lift, bdy=True)
     except ValueError as e:
@@ -253,7 +253,7 @@ def get_scatter_lift_data(df: pl.DataFrame, lift: str, equipment: list[str], use
 
 def add_scatter_traces(fig: go.Figure, plot_df: pl.DataFrame, bodyweight_column: str, y_column: str) -> go.Figure:
     """Add scatter traces for each sex group in the data."""
-    # Optimize for common case of two sexes (M/F)
+    # Optimize for a common case of two sexes (M/F)
     for sex, color, name in [('M', 'blue', 'Male Lifters'), ('F', 'pink', 'Female Lifters')]:
         sex_data = plot_df.filter(pl.col('Sex') == sex)
         if sex_data.height > 0:
@@ -434,7 +434,7 @@ def create_scatter_plot(df: pl.DataFrame, equipment: list[str], lift: str, use_w
     # Add scatter traces for each sex group
     fig = add_scatter_traces(fig, plot_df, bodyweight_column, y_column)
 
-    # Add user's data point if provided
+    # Add a user's data point if provided
     has_user_data = (user_bodyweight is not None and user_lift is not None
                      and user_bodyweight > 0 and user_lift > 0)
     if has_user_data:

@@ -111,7 +111,7 @@ def _extract_sample_values(df: pl.DataFrame) -> list[str]:
     return sample_vals[:10]
 
 def format_arg_for_key(arg: Any) -> str:
-    """Format a single argument for inclusion in cache key."""
+    """Format a single argument for inclusion in a cache key."""
     if arg is None:
         return "none"
     elif isinstance(arg, int | float | bool):
@@ -122,11 +122,11 @@ def format_arg_for_key(arg: Any) -> str:
         return f"obj_{id(arg)}"
 
 def format_args_for_key(args: tuple) -> str:
-    """Format positional arguments for cache key."""
+    """Format positional arguments for a cache key."""
     return "_".join(format_arg_for_key(arg) for arg in args)
 
 def format_kwargs_for_key(kwargs: dict) -> str:
-    """Format keyword arguments for cache key."""
+    """Format keyword arguments for a cache key."""
     formatted_items = []
 
     for k, v in sorted(kwargs.items()):
@@ -152,7 +152,7 @@ def advanced_cache_key(func_name: str, df: pl.DataFrame, *args, **kwargs) -> str
         **kwargs: Additional keyword arguments
 
     Returns:
-        Hash string to use as cache key
+        Hash string to use as a cache key
     """
     df_hash = get_dataframe_hash(df)
     args_str = format_args_for_key(args)
@@ -186,10 +186,10 @@ def advanced_cached_figure(func: Callable) -> Callable:
         # Get dataframe from args (typically first arg)
         df = args[0] if args else None
 
-        # Generate sophisticated cache key
+        # Generate a sophisticated cache key
         cache_key = advanced_cache_key(func.__name__, df, *args[1:], **kwargs)
 
-        # Try to get from cache
+        # Try to get from the cache
         cached_result = cache_service.get(cache_key)
         if cached_result is not None:
             logger.info(f"Cache hit for {func.__name__}")
@@ -208,7 +208,7 @@ def advanced_cached_figure(func: Callable) -> Callable:
             return result
         except Exception as e:
             logger.error(f"Error generating figure {func.__name__}: {e}")
-            # Return an empty figure with error message
+            # Return an empty figure with an error message
             fig = go.Figure()
             fig.add_annotation(
                 text=f"Error generating figure: {str(e)}",
