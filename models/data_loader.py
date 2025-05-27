@@ -1,8 +1,8 @@
 import datetime
 import io
 import logging
-import zipfile
 from pathlib import Path
+from zipfile import ZipFile
 
 import polars as pl
 import requests
@@ -62,10 +62,10 @@ def download_and_process_data() -> pl.LazyFrame:
         raise requests.exceptions.HTTPError(f"Failed to download data: {response.status_code}")
 
     # Extract the CSV file from the ZIP archive
-    with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+    with ZipFile(io.BytesIO(response.content)) as z:
         return zip_to_lazyframe(z)
 
-def zip_to_lazyframe(z: zipfile.ZipFile) -> pl.LazyFrame:
+def zip_to_lazyframe(z: ZipFile) -> pl.LazyFrame:
     csv_files = [f for f in z.namelist() if f.endswith('.csv')]
     if not csv_files:
         raise FileNotFoundError("No CSV file found in the ZIP archive")
