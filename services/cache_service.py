@@ -5,9 +5,11 @@ import time
 import zlib
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from services.config_service import config
+
+T = TypeVar("T")
 
 # Configure logging
 logging.basicConfig(
@@ -223,10 +225,10 @@ class CacheService:
         except Exception as e:
             return self._handle_cache_error('Cache storage error: ', e, False)
 
-    def _handle_cache_error[T](self, arg0: str, e: BaseException, arg2: T) -> T:
-        logger.error(f"{arg0}{e}")
+    def _handle_cache_error(self, msg: str, e: BaseException, default: T) -> T:
+        logger.error(f"{msg}{e}")
         self.stats['errors'] += 1
-        return arg2
+        return default
 
     def _clean_old_files(self) -> None:
         """Clean up old cache files."""
