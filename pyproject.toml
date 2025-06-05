@@ -1,12 +1,12 @@
 [project]
-name = "your-project-name"
+name = "visual_powerlifting_data"
 version = "0.1.0"
 description = "Your project description"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
-  {name = "Your Name", email = "your.email@example.com"}
+  {name = "Gregory Carnegie"}
 ]
 dependencies = [
     "dash>=3.0.4",
