@@ -1,6 +1,6 @@
 import logging
 from functools import cache
-from typing import Literal
+from typing import Literal, TypeVar
 
 import polars as pl
 
@@ -48,7 +48,10 @@ JUNIOR_WEIGHT_CLASSES = {
     "F": (43.0, "43kg")
 }
 
-def wilks_polynomial[T](coefficients: tuple, bodyweight: T) -> T:
+T = TypeVar("T")
+
+
+def wilks_polynomial(coefficients: tuple[float, ...], bodyweight: T) -> T:
     """
     Calculate Wilks score using the provided coefficients and bodyweight.
 
