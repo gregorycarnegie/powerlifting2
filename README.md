@@ -17,13 +17,17 @@ This application visualizes powerlifting data from OpenPowerlifting, allowing us
 
 1. Clone this repository
 2. Install the requirements:
-   ```
+
+   ```bash
    pip install -r requirements.txt
    ```
+
 3. Run the application:
-   ```
+
+   ```bash
    python app.py
    ```
+
 4. Open your web browser and navigate to `http://127.0.0.1:8050`
 
 ## Data Source
@@ -41,6 +45,7 @@ This application uses data from the [OpenPowerlifting project](https://openpower
 ## Technical Details
 
 The app uses:
+
 - Dash and Plotly for interactive visualizations
 - Pandas and PyArrow for efficient data processing
 - Bootstrap for responsive layout
